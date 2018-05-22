@@ -68,3 +68,7 @@ The above script, all it does is subsample the `transcript` feature from the *GT
 ### Dowloading Raw-Fastq
 
 Raw Fastq file can be downloaded from the 10x-Genomics Support website from [here](https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/pbmc4k). You might have to provide your email-id and register to download the raw-fastqs.
+
+### Ipython Notebook
+Prefer to read ipython notebook ?
+Check out the gist [here](https://gist.github.com/k3yavi/c501705ed2d29b12b0d10cf78b3ed001).

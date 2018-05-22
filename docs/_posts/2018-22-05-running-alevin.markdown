@@ -45,3 +45,7 @@ Once compiled, the above command will generate a binary with the name `wrapper` 
 ```bash
 ./run.sh ./salmon alevin -lISR -1 pbmc3k_fastqs/read-I1.fq.gz -2 pbmc3k_fastqs/read-RA.fq.gz -r pbmc3k_fastqs/read-I1.fq.gz --gemcode -i index -p 8 -o alevin_output --tgMap txp2gene.tsv
 ```
+
+### Ipython Notebook
+Prefer to read ipython notebook ?
+Check out the gist [here](https://gist.github.com/k3yavi/c501705ed2d29b12b0d10cf78b3ed001).
