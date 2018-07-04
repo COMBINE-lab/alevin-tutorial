@@ -14,23 +14,31 @@ A typical run of alevin will generate 3 files:
 * *quants\_mat\_cols.txt* -- Column Header (Gene-ids) of the matrix.
 * *quants\_mat\_rows.txt* -- Row Index (CB-ids) of the matrix.
 
+## Python Import
+Alevin's per-cell level count matrix can be imported directly into a python dataframe. The following python3 dependency is needed and can be installed using pip as follows:
+
+```python
+pip3 install vpolo
+```
+
+### Reading Binary format
+Alevin's `quants_mat.gz` file can be easily imported to generate Cell v Gene dataframe using the following piece of python3 code:
+
+``` python
+from vpolo.alevin import parser
+alevin_df = parser.read_quants_bin("<PATH TO ALEVIN output folder>")
+```
+
 ### Pandas Compatibility:
 
 Alevin can also dump the count-matrix in a human readable -- comma-separated-value (_CSV_) format, if given flag `--dumpCsvCounts`. The new output file `quants_mat.csv` can be easily read-in using the following python-pandas based function:
 
 ```python
-def read_quant_alevin(base):
-    alv = pd.read_table(base+"quants_mat.csv", sep=",", header=None)
-    names = pd.read_table(base+"quants_mat_rows.txt", header=None)
-    genes = pd.read_table(base+"quants_mat_cols.txt", header=None)
-    alv.drop([len(alv.columns)-1], axis=1, inplace=True)
-    alv.columns = genes[0].values
-    alv.index = names[0].values
-    alv = alv.loc[:, (alv != 0).any(axis=0)]
-    return alv
+from vpolo.alevin import parser
+alevin_df = parser.read_quants_csv("<PATH TO ALEVIN output folder>")
 ```
 
-The above function takes the location of the `alevin` directory inside the specified -- output directory ( while running the alevin-quantification tool ). The function returns a python `dataframe` for the count matrix with Cellular-Barcodes as the index and Gene-id as the header which can be used for the downstream analysis.
+The above function takes the path of the directory specified in --output directory ( while running the alevin-quantification tool ). Note that if alevin was finished successfully then the above specified directory will contain a directory inside of it with the name `alevin` . The function returns a python `dataframe` for the count matrix with Cellular-Barcodes as the index and Gene-id as the header which can be used for the downstream analysis.
 
 ### Ipython Notebook
 Prefer to read ipython notebook ?
