@@ -31,7 +31,7 @@ tar -xvzf Salmon-0.10.0_linux_x86_64.tar.gz
 * Compiling from Source:
 
 ```python
-git clone git@github.com:COMBINE-lab/salmon.git
+git clone https://github.com/COMBINE-lab/salmon.git
 cd salmon; mkdir build; cd build
 cmake ..
 make install
@@ -46,7 +46,7 @@ Alevin uses the same framework as Salmon to make index of the reference transcri
 In our tutorial we are working on `PBMC` data and will download human transcriptome. For example, we are downloading trancriptome with transcripts from protein-coding genes only as follows:
 
 ```python
-wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/ gencode.v28.pc_transcripts.fa.gz
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.pc_transcripts.fa.gz
 ```
 
 Once we have the reference-transcriptome, alevin index can be created using the following command:
