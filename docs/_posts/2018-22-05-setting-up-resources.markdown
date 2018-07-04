@@ -46,8 +46,8 @@ Alevin uses the same framework as Salmon to make index of the reference transcri
 In our tutorial we are working on `PBMC` data and will download human transcriptome. For example, we are downloading trancriptome with transcripts from protein-coding genes only as follows:
 
 ```python
-wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.pc_transcripts.fa.gz  
-
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.pc_transcripts.fa.gz
+echo "Done Downloading"
 ```
 
 Once we have the reference-transcriptome, alevin index can be created using the following command:
