@@ -60,11 +60,22 @@ This command will build the alevin index inside the folder `index` in your curre
 ### Transcript to Gene Mapping
 Alevin works on transcript level equivalence classes to resolves potential UMI collision, while it also benefits from transcript to gene relation by sharing the information among the equivalene classes form one gene -- hence the need for a map from transcript id to gene-ids. Alevin requires the user to input a *tab* separated (one transcript-gene pair per line) file. For our-example we can extract the exact file using the following command for the `GTF` file downloaded from [here](ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.basic.annotation.gtf.gz).
 
+NOTE: Already have a transcript to gene mapping file for all the transcripts in the reference transcriptome ? If yes, then we can skip this step.
+
 ```python
 bioawk -c gff '$feature=="transcript" {print $group}' human/gtf/gencode.v26.primary_assembly.annotation.gtf | awk -F ' ' '{print substr($4,2,length($4)-3) "\t" substr($2,2,length($2)-3)}' - > txp2gene.tsv
 ```
 
-The above script, all it does is subsample the `transcript` feature from the *GTF* and dumps the corresponding txp-gene-ids pair in a _tab separated file (tsv)_.
+The above script, all it does is subsample the `transcript` feature from the *GTF* and dumps the corresponding txp-gene-ids pair in a _tab separated file (tsv)_. The mapping file for `gencode` based human reference transcriptome would look something like the following:
+
+```
+ENST00000456328.2       ENSG00000223972.5
+ENST00000450305.2       ENSG00000223972.5
+ENST00000488147.1       ENSG00000227232.5
+ENST00000619216.1       ENSG00000278267.1
+ENST00000473358.1       ENSG00000243485.5
+ENST00000469289.1       ENSG00000243485.5
+```
 
 ### Dowloading Raw-Fastq
 
