@@ -31,7 +31,7 @@ Alevin is designed to primarily work with the file-format having CB-UMI in file 
 To run alevin in `v1` mode the following three changes are required:
 
 1. Using the flag `--gemcode` instead of `--chromium`.
-2. Along with `-1`, `-2`; `-r` flag should also be populated with the same parameters (path to file(s)) given to `-1` flag.
+2. NO `-1`, `-2`; flags should be given instead `-b` flag which specifies the path to the parent directory containing the reads (\*I1\* and \*RA\*).
 3. The wrapper script has to be downloaded and compile using the following command:
 
 ```python
@@ -40,10 +40,10 @@ cd salmon/scripts/v1_10x;
 g++ -std=c++11 -O3 -I ../../include -o wrapper wrapper.cpp -lz
 ```
 
-Once compiled, the above command will generate a binary with the name `wrapper` and the command to quantify the `v1` data would be as follows (from inside the `v1_10x` folder):
+Once compiled, the above command will generate a binary with the name `wrapper` and the path to this binary should be updated in the `run.sh` file. The command to quantify the `v1` data would be as follows (from inside the `v1_10x` folder):
 
 ```bash
-./run.sh ./salmon alevin -lISR -1 pbmc3k_fastqs/read-I1.fq.gz -2 pbmc3k_fastqs/read-RA.fq.gz -r pbmc3k_fastqs/read-I1.fq.gz --gemcode -i index -p 8 -o alevin_output --tgMap txp2gene.tsv
+./run.sh ./salmon alevin -lISR -b pbmc3k_fastqs/ --gemcode -i index -p 8 -o alevin_output --tgMap txp2gene.tsv
 ```
 
 ### Ipython Notebook
