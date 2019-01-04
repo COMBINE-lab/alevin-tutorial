@@ -163,7 +163,7 @@ cowplot::plot_grid(
 )
 ```
 
-![](../images/analysis-1.png)<!-- -->
+![](../../images/analysis-1.png)<!-- -->
 
 
 ```r
@@ -197,7 +197,7 @@ alevin <- sc3(alevin, n_cores = 1, ks = 2:5)
 scater::plotTSNE(alevin, colour_by = "sc3_2_clusters")
 ```
 
-![](../images/clustering-1.png)<!-- -->
+![](../../images/clustering-1.png)<!-- -->
 
 
 ```r
