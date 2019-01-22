@@ -18,9 +18,8 @@ Once all the above resource are available alevin can be run using the following 
 ### External Whitelist 
 Many times (specifically in case of 10x data), the whitelist is already available and based on the use-case, one don't wan't alevin to perform whitelisting of it's own. This mode can be activated by giving `--whitelist` flag to alevin and providing a list of known whitelisted CB (Cellular Barcodes). Given, this flag alevin will sequence correct CB towards the given CB and generated the gene-count matrix accordingly.
 
-
-### Naive Mode
-Alevin uses family of algorithms to correct various biases and perform the optimal UMI deduplication. However, to set the baseline and compare the performance (both time-memory and accuracy) with the traditional mode, alevin can be restricted to not use collision correction by giving the flag `--naive`.
+### 10x v3 Data
+The data format is almost similar to v2, the only chnage we have to do is to use `--chromiumV3` instead of `--chromium`.
 
 ### Drop-seq Data
 Alevin can be easily ported to quantify the data from *drop-seq* protocol as well. Since the data format is almost similar to `10x`, the only chnage we have to do is use `--dropseq` instead of `--chromium`.
