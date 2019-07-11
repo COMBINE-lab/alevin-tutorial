@@ -1,6 +1,6 @@
 ---
 title:  "Understanding Output"
-date:   2018-05-22 15:04:23
+date:   2018-05-24 15:04:23
 categories: [tutorial]
 tags: [alevin]
 ---
@@ -31,15 +31,31 @@ alevin_df = parser.read_quants_bin("<PATH TO ALEVIN output folder>")
 
 ### Pandas Compatibility:
 
-Alevin can also dump the count-matrix in a human readable -- comma-separated-value (_CSV_) format, if given flag `--dumpCsvCounts`. The new output file `quants_mat.csv` can be easily read-in using the following python-pandas based function:
+Alevin can also dump the count-matrix in a human readable -- matrix market exchange (_MTX_) format, if given flag `--dumpMtx`. The new output file `quants_mat.mtx.gz` can be easily read-in using the following python-pandas based function:
 
 ```python
-from vpolo.alevin import parser
-alevin_df = parser.read_quants_csv("<PATH TO ALEVIN output folder>")
+from scipy.io import mmread
+import gzip
+with gzip.open(mat_file) as f:
+  alevin_df = mmread("<PATH TO ALEVIN quants_mat.mtx.gz file>").toarray()
 ```
 
 The above function takes the path of the directory specified in --output directory ( while running the alevin-quantification tool ). Note that if alevin was finished successfully then the above specified directory will contain a directory inside of it with the name `alevin` . The function returns a python `dataframe` for the count matrix with Cellular-Barcodes as the index and Gene-id as the header which can be used for the downstream analysis.
 
-### Ipython Notebook
-Prefer to read ipython notebook ?
-Check out the gist [here](https://gist.github.com/k3yavi/c501705ed2d29b12b0d10cf78b3ed001) for the python-code to parse the binary/csv count-matrix fomrat generated through alevin pipeline.
+### Reading Alevin UMI graphs
+
+When run with the command line flag `--dumpUmiGraph` alevin generates the per cell level Parsimonious Umi Graph (PUGs) into a compressed binary file `cell_umi_graphs.gz`. The file can be prased and generate a per cell level `dot` graph file using following python script:
+
+```python
+from vpolo.alevin import parser
+parser.read_umi_graph("<PATH to alevin output folder>", "<output folder>")
+```
+
+### Reading Alevin's bfh (big freaking hash) file
+
+When run with the command line flag `--dumpBfh` alevin generates the big hash file used by alevin for performing the deduplication, along with the mapped equivalence classes. The file can be parsed by the following python script:
+
+```python
+from vpolo.alevin import parser
+parser.read_bfh("<PATH to alevin output folder>")
+```
