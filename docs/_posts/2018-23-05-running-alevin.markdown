@@ -1,6 +1,6 @@
 ---
 title:  "How to Run Alevin"
-date:   2018-05-22 15:04:23
+date:   2018-05-23 15:04:23
 categories: [tutorial]
 tags: [alevin]
 ---
