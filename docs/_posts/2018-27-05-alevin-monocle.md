@@ -11,13 +11,14 @@ tags: [alevin]
 
 
 ```R
+# Monocle >3 0 and tximport >1.13.0
 library(tximport)
 library(monocle3)
 ```
 
 
 ```R
-# path to the output directory of Alevin run of neurons_900 10x data
+# path to the output directory of Alevin run of neurons_900 10x V2 data
 files <- file.path("alevin_quants/alevin/quants_mat.gz")
 file.exists(files)
 ```
@@ -30,10 +31,10 @@ txi <- tximport(files, type="alevin")
 
 
 ```R
-# and we are good to go !! Cells after this has been taken from Monocle tutrial:
-# http://cole-trapnell-lab.github.io/monocle-release/docs/#constructing-single-cell-trajectories
-# Below lines are for example purposes only and could be suboptimal. We recommend
-# checking out Monocle tool for more detailed tutorial of the downstream analysis.
+and we are good to go !! Cells after this has been taken from Monocle tutrial:
+https://cole-trapnell-lab.github.io/monocle3/
+Below lines are for example purposes only and could be suboptimal. We recommend
+checking out Monocle tool for more detailed tutorial of the downstream analysis.
 ```
 
 
