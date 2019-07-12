@@ -31,10 +31,10 @@ txi <- tximport(files, type="alevin")
 
 
 ```R
-and we are good to go !! Cells after this has been taken from Monocle tutrial:
+"and we are good to go !! Cells after this has been taken from Monocle tutrial:
 https://cole-trapnell-lab.github.io/monocle3/
 Below lines are for example purposes only and could be suboptimal. We recommend
-checking out Monocle tool for more detailed tutorial of the downstream analysis.
+checking out Monocle tool for more detailed tutorial of the downstream analysis."
 ```
 
 
