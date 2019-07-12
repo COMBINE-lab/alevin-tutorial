@@ -7,13 +7,13 @@ tags: [alevin]
 ## Alevin-Seurat Connection
 
 ```R
-# Seurat >3.0 and tximport >1.13.0
+# Seurat v3.0.0 and tximport >=1.13.10
 library(Seurat)
 library(tximport)
 ```
 
 ```R
-# path to the output directory of Alevin run
+# path to the output directory of Alevin run of pbmc_1k 10x V2 data
 files <- file.path("alevin_quants/alevin/quants_mat.gz")
 file.exists(files)
 ```
