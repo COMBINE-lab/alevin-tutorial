@@ -27,7 +27,7 @@ Alternatively, vpolo can be installed using conda as follows:
 conda install -c bioconda vpolo
 ```
 
-If you wan't the python code to understand the schema of the binary output, it can be found [here](https://github.com/k3yavi/vpolo/blob/master/vpolo/alevin/parser.py)
+If you want the python code to understand the schema of the binary output, it can be found [here](https://github.com/k3yavi/vpolo/blob/master/vpolo/alevin/parser.py)
 
 ### Reading Binary format
 Alevin's `quants_mat.gz` file can be easily imported to generate Cell v Gene dataframe using the following piece of python3 code:
