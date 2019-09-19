@@ -17,8 +17,9 @@ library(tximport)
 files <- file.path("alevin_quants/alevin/quants_mat.gz")
 file.exists(files)
 ```
-TRUE
-
+```R
+"TRUE"
+```
 
 ```R
 # Reading in the alevin quants quants
