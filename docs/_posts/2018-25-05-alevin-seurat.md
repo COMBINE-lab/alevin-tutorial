@@ -17,8 +17,9 @@ library(tximport)
 files <- file.path("alevin_quants/alevin/quants_mat.gz")
 file.exists(files)
 ```
-TRUE
-
+```R
+"TRUE"
+```
 
 ```R
 # Reading in the alevin quants quants
@@ -32,11 +33,6 @@ https://satijalab.org/seurat/v3.0/pbmc3k_tutorial.html
 Below lines are for example purposes only and could be suboptimal. We recommend
 checking out Seurat tool for more detailed tutorial of the downstream analysis."
 ```
-
-```R
-
-```
-
 
 ```R
 pbmc <- CreateSeuratObject(counts = txi$counts , min.cells = 3, min.features = 200, project = "10X_PBMC")
@@ -55,6 +51,9 @@ all.genes <- rownames(pbmc)
 pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
+```R
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+```
 
 ```R
 pbmc <- FindNeighbors(pbmc, dims = 1:10)
