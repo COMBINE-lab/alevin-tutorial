@@ -34,11 +34,6 @@ checking out Seurat tool for more detailed tutorial of the downstream analysis."
 ```
 
 ```R
-
-```
-
-
-```R
 pbmc <- CreateSeuratObject(counts = txi$counts , min.cells = 3, min.features = 200, project = "10X_PBMC")
 ```
 
@@ -55,6 +50,9 @@ all.genes <- rownames(pbmc)
 pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
+```R
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+```
 
 ```R
 pbmc <- FindNeighbors(pbmc, dims = 1:10)
