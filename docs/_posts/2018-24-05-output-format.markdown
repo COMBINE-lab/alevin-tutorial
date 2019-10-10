@@ -65,5 +65,5 @@ When run with the command line flag `--dumpBfh` alevin generates the big hash fi
 
 ```python
 from vpolo.alevin import parser
-parser.read_bfh("<PATH to alevin output folder>")
+parser.read_bfh("<PATH to alevin output folder>", "<PATH to t2g file>")
 ```
