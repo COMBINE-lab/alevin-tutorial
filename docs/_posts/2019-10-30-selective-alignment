@@ -1,12 +1,12 @@
 ---
 title:  "Selective Alignment Gentrome Indexing"
-date:   2019-01-11 15:04:23
+date:   2019-30-10 15:04:23
 categories: [tutorial]
 tags: [selective-alignment]
 ---
 ## Fast is Good but Fast and accurate is better !
 
-The accuracy of transcript quantification using RNA-seq data depends on many factors, such as the choice of alignment or mapping method and the quantification model being adopted. After investigating the influence of mapping and alignment on the accuracy of transcript quantification in both simulated and experimental data, as well as the effect on subsequent differential expression analysis, we designed selective alignment methodo. Selective Alignment overcomes the shortcomings of lightweight approaches without incurring the computational cost of traditional alignment. Here we give a short tutorial on how to index your genome and transcriptome to get the most accurate quantification estimates.
+The accuracy of transcript quantification using RNA-seq data depends on many factors, such as the choice of alignment or mapping method and the quantification model being adopted. After investigating the influence of mapping and alignment on the accuracy of transcript quantification in both simulated and experimental data, as well as the effect on subsequent differential expression analysis, we designed selective alignment method. Selective Alignment overcomes the shortcomings of lightweight approaches without incurring the computational cost of traditional alignment. Here we give a short tutorial on how to index your genome and transcriptome to get the most accurate quantification estimates.
 
 ### Downloading Reference
 
