@@ -7,7 +7,7 @@ tags: [selective-alignment]
 
 ## Fast is Good but Fast and accurate is better !
 
-The accuracy of transcript quantification using RNA-seq data depends on many factors, such as the choice of alignment or mapping method and the quantification model being adopted. After investigating the influence of mapping and alignment on the accuracy of transcript quantification in both simulated and experimental data, as well as the effect on subsequent differential expression analysis, we designed selective alignment method. Selective Alignment overcomes the shortcomings of lightweight approaches without incurring the computational cost of traditional alignment. Here we give a short tutorial on how to index your genome and transcriptome to get the most accurate quantification estimates.
+The accuracy of transcript quantification using RNA-seq data depends on many factors, such as the choice of alignment or mapping method and the quantification model being adopted. After investigating the influence of mapping and alignment on the accuracy of transcript quantification in both simulated and experimental data, as well as the effect on subsequent differential expression analysis, we designed selective alignment method which overcomes the shortcomings of lightweight approaches without incurring the computational cost of traditional alignment. Here we give a short tutorial on how to index your genome and transcriptome to get the accurate quantification estimates.
 
 ### Downloading Reference
 
@@ -44,7 +44,7 @@ NOTE: the genome targets (decoys) should come after the transcriptome targets in
 cat gencode.vM23.transcripts.fa.gz GRCm38.primary_assembly.genome.fa.gz > gentrome.fa.gz
 ```
 
-### Salmon Indexin
+### Salmon Indexing
 
 We have all the ingredients ready for the salmon recipe. We can run salmon indexing step as follows:
 
