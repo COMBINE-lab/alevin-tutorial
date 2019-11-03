@@ -49,8 +49,10 @@ cat gencode.vM23.transcripts.fa.gz GRCm38.primary_assembly.genome.fa.gz > gentro
 We have all the ingredients ready for the salmon recipe. We can run salmon indexing step as follows:
 
 ```python
-salmon index -t gentrome.fa.gz -d decoys.txt -p 12 -i salmon_index
+salmon index -t gentrome.fa.gz -d decoys.txt -p 12 -i salmon_index --gencode
 ```
+
+NOTE: `--gencode` flag is for removing extra metdata in the target header separated by `|` from the gencode reference. You can skip it if using other references.
 
 ### Ipython Notebook
 Prefer to read ipython notebook ?
