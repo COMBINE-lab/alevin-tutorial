@@ -20,7 +20,7 @@ wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/GRCm38.
 
 ### Installing Salmon
 
-Although there are mutliple ways to download salmon (ex: binary from github, docker image), we are going to install it throug conda. Assuming a conda environment is already set up, we can install salmon through following command:
+Although there are mutliple ways to download salmon (ex: binary from github, docker image), we are going to install it through conda. Assuming a conda environment is already set up, we can install salmon through following command:
 
 ```python
 conda install --channel bioconda salmon
@@ -33,7 +33,7 @@ Make sure you have the latest version of salmon (v1.0 as on November 1st, 2019) 
 Salmon indexing requires the names of the genome targets, which is extractable by using the `grep` command:
 
 ```python
-grep "^>" <(zcat GRCm38.primary_assembly.genome.fa.gz) > decoys.txt
+grep "^>" <(zcat GRCm38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
 sed -i -e 's/>//g' decoys.txt
 ```
 
