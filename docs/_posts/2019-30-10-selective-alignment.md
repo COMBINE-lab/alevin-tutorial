@@ -34,7 +34,7 @@ Salmon indexing requires the names of the genome targets, which is extractable b
 
 ```python
 grep "^>" <(zcat GRCm38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
-sed -i -e 's/>//g' decoys.txt
+sed -i.bak -e 's/>//g' decoys.txt
 ```
 
 Along with the list of decoys salmon also needs the concatenated transcriptome and genome reference file for index.
