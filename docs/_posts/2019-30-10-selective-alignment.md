@@ -33,7 +33,7 @@ Make sure you have the latest version of salmon (v1.0 as on November 1st, 2019) 
 Salmon indexing requires the names of the genome targets, which is extractable by using the `grep` command:
 
 ```python
-grep "^>" <(zcat GRCm38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
+grep "^>" <(gunzip -c GRCm38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
 sed -i.bak -e 's/>//g' decoys.txt
 ```
 
