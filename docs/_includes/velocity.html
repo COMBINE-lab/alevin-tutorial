@@ -361,7 +361,7 @@ summary {
 
 
 
-<h1 class="title toc-ignore">Estimating spliced and unspliced abundances for RNA velocity with alevin</h1>
+
 <h4 class="author">Charlotte Soneson</h4>
 <h4 class="date">2020-03-22</h4>
 
@@ -380,7 +380,7 @@ background-color: #c8defa
 }
 </style>
 <div id="rna-velocity" class="section level2">
-<h2>RNA velocity</h2>
+
 <p>RNA velocity (<a href="https://www.nature.com/articles/s41586-018-0414-6">La Manno et al., 2018</a>) allows investigation of the dynamic patterns in single-cell RNA-seq data sets, via estimation of the abundance of intronic (“unprocessed”) and exonic (“processed”) RNA in each cell, and modelling of these via a system of ordinary differential equations. From a quantification point of view, RNA velocity analysis requires the generation of two count matrices, representing the processed and unprocessed RNA. In this tutorial, we show how these matrices can be generated using <em>alevin</em> and <a href="https://bioconductor.org/packages/tximeta/"><em>tximeta</em></a> (<a href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007664">Love et al., 2020</a>). For a more detailed study of the impact of quantification on RNA velocity estimates and interpretation, see <a href="https://www.biorxiv.org/content/10.1101/2020.03.13.990069v1">Soneson et al., 2020</a>.</p>
 <p>The sections below contain code chunks executed in different languages, indicated with different background colors. R code is represented by grey boxes, shell commands by blue boxes, and python code by yellow boxes. We start by loading the required R packages.</p>
 <pre class="r rchunk"><code>suppressPackageStartupMessages({
