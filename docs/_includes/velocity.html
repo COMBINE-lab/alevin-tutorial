@@ -361,7 +361,7 @@ summary {
 
 
 
-
+<h1 class="title toc-ignore">Estimating spliced and unspliced abundances for RNA velocity with alevin</h1>
 <h4 class="author">Charlotte Soneson</h4>
 <h4 class="date">2020-03-22</h4>
 
@@ -380,7 +380,7 @@ background-color: #c8defa
 }
 </style>
 <div id="rna-velocity" class="section level2">
-
+<h2>RNA velocity</h2>
 <p>RNA velocity (<a href="https://www.nature.com/articles/s41586-018-0414-6">La Manno et al., 2018</a>) allows investigation of the dynamic patterns in single-cell RNA-seq data sets, via estimation of the abundance of intronic (“unprocessed”) and exonic (“processed”) RNA in each cell, and modelling of these via a system of ordinary differential equations. From a quantification point of view, RNA velocity analysis requires the generation of two count matrices, representing the processed and unprocessed RNA. In this tutorial, we show how these matrices can be generated using <em>alevin</em> and <a href="https://bioconductor.org/packages/tximeta/"><em>tximeta</em></a> (<a href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007664">Love et al., 2020</a>). For a more detailed study of the impact of quantification on RNA velocity estimates and interpretation, see <a href="https://www.biorxiv.org/content/10.1101/2020.03.13.990069v1">Soneson et al., 2020</a>.</p>
 <p>The sections below contain code chunks executed in different languages, indicated with different background colors. R code is represented by grey boxes, shell commands by blue boxes, and python code by yellow boxes. We start by loading the required R packages.</p>
 <pre class="r rchunk"><code>suppressPackageStartupMessages({
@@ -416,46 +416,50 @@ grl &lt;- eisaR::getFeatureRanges(
 <pre><code>## GRangesList object of length 3:
 ## $ENSMUST00000161581.1
 ## GRanges object with 2 ranges and 5 metadata columns:
-##       seqnames          ranges strand |              exon_id exon_rank
-##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt; &lt;integer&gt;
-##   [1]     chr1 3466587-3466687      + | ENSMUSE00000869502.1         1
-##   [2]     chr1 3513405-3513553      + | ENSMUSE00000864479.1         2
-##              transcript_id              gene_id        type
-##                &lt;character&gt;          &lt;character&gt; &lt;character&gt;
-##   [1] ENSMUST00000161581.1 ENSMUSG00000089699.1        exon
-##   [2] ENSMUST00000161581.1 ENSMUSG00000089699.1        exon
+##       seqnames          ranges strand |              exon_id
+##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt;
+##   [1]     chr1 3466587-3466687      + | ENSMUSE00000869502.1
+##   [2]     chr1 3513405-3513553      + | ENSMUSE00000864479.1
+##       exon_rank        transcript_id              gene_id        type
+##       &lt;integer&gt;          &lt;character&gt;          &lt;character&gt; &lt;character&gt;
+##   [1]         1 ENSMUST00000161581.1 ENSMUSG00000089699.1        exon
+##   [2]         2 ENSMUST00000161581.1 ENSMUSG00000089699.1        exon
 ##   -------
 ##   seqinfo: 22 sequences (1 circular) from an unspecified genome; no seqlengths
 ## 
 ## $ENSMUST00000192183.1
 ## GRanges object with 1 range and 5 metadata columns:
-##       seqnames          ranges strand |              exon_id exon_rank
-##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt; &lt;integer&gt;
-##   [1]     chr1 3531795-3532720      + | ENSMUSE00001343235.1         1
-##              transcript_id              gene_id        type
-##                &lt;character&gt;          &lt;character&gt; &lt;character&gt;
-##   [1] ENSMUST00000192183.1 ENSMUSG00000103147.1        exon
+##       seqnames          ranges strand |              exon_id
+##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt;
+##   [1]     chr1 3531795-3532720      + | ENSMUSE00001343235.1
+##       exon_rank        transcript_id              gene_id        type
+##       &lt;integer&gt;          &lt;character&gt;          &lt;character&gt; &lt;character&gt;
+##   [1]         1 ENSMUST00000192183.1 ENSMUSG00000103147.1        exon
 ##   -------
 ##   seqinfo: 22 sequences (1 circular) from an unspecified genome; no seqlengths
 ## 
 ## $ENSMUST00000193244.1
 ## GRanges object with 1 range and 5 metadata columns:
-##       seqnames          ranges strand |              exon_id exon_rank
-##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt; &lt;integer&gt;
-##   [1]     chr1 3680155-3681788      + | ENSMUSE00001341983.1         1
-##              transcript_id              gene_id        type
-##                &lt;character&gt;          &lt;character&gt; &lt;character&gt;
-##   [1] ENSMUST00000193244.1 ENSMUSG00000102348.1        exon
+##       seqnames          ranges strand |              exon_id
+##          &lt;Rle&gt;       &lt;IRanges&gt;  &lt;Rle&gt; |          &lt;character&gt;
+##   [1]     chr1 3680155-3681788      + | ENSMUSE00001341983.1
+##       exon_rank        transcript_id              gene_id        type
+##       &lt;integer&gt;          &lt;character&gt;          &lt;character&gt; &lt;character&gt;
+##   [1]         1 ENSMUST00000193244.1 ENSMUSG00000102348.1        exon
 ##   -------
 ##   seqinfo: 22 sequences (1 circular) from an unspecified genome; no seqlengths</code></pre>
 <p>After defining the genomic positions of all features of interest, we can extract the sequences of these, and write to a fasta file for later indexing with <em>Salmon</em>.</p>
-<pre class="r rchunk"><code>genome &lt;- Biostrings::readDNAStringSet(&quot;GRCm38.primary_assembly.genome.fa.gz&quot;)
+<pre class="r rchunk"><code>genome &lt;- Biostrings::readDNAStringSet(
+    &quot;GRCm38.primary_assembly.genome.fa.gz&quot;
+)
 names(genome) &lt;- sapply(strsplit(names(genome), &quot; &quot;), .subset, 1)
 seqs &lt;- GenomicFeatures::extractTranscriptSeqs(
   x = genome, 
   transcripts = grl
 )
-Biostrings::writeXStringSet(seqs, filepath = &quot;gencode.vM24.annotation.expanded.fa&quot;)</code></pre>
+Biostrings::writeXStringSet(
+    seqs, filepath = &quot;gencode.vM24.annotation.expanded.fa&quot;
+)</code></pre>
 <p>To enable reading the estimated abundances with <em>tximeta</em>, automatically recognizing the underlying transcriptome, we write the expanded annotation to a GTF file. This will later be used to create a linked transcriptome for <em>tximeta</em>.</p>
 <pre class="r rchunk"><code>eisaR::exportToGtf(
   grl, 
@@ -470,10 +474,15 @@ Biostrings::writeXStringSet(seqs, filepath = &quot;gencode.vM24.annotation.expan
 ## 4 ENSMUSG00000089699.1 ENSMUSG00000089699.1-I
 ## 5 ENSMUSG00000103147.1 ENSMUSG00000103147.1-I
 ## 6 ENSMUSG00000102348.1 ENSMUSG00000102348.1-I</code></pre>
-<pre class="r rchunk"><code>write.table(metadata(grl)$corrgene, file = &quot;gencode.vM24.annotation.expanded.features.tsv&quot;,
-            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = &quot;\t&quot;)</code></pre>
+<pre class="r rchunk"><code>write.table(
+    metadata(grl)$corrgene, 
+    file = &quot;gencode.vM24.annotation.expanded.features.tsv&quot;,
+    row.names = FALSE, col.names = TRUE, quote = FALSE, sep = &quot;\t&quot;
+)</code></pre>
 <p>Finally, we create a text file mapping transcript and intron identifiers to the corresponding gene identifiers.</p>
-<pre class="r rchunk"><code>df &lt;- eisaR::getTx2Gene(grl, filepath = &quot;gencode.vM24.annotation.expanded.tx2gene.tsv&quot;)</code></pre>
+<pre class="r rchunk"><code>df &lt;- eisaR::getTx2Gene(
+    grl, filepath = &quot;gencode.vM24.annotation.expanded.tx2gene.tsv&quot;
+)</code></pre>
 </div>
 <div id="step-2.-index-the-reference-features" class="section level2">
 <h2>Step 2. Index the reference features</h2>
@@ -482,8 +491,9 @@ Biostrings::writeXStringSet(seqs, filepath = &quot;gencode.vM24.annotation.expan
 -i gencode.vM24.annotation.expanded.sidx --gencode -p 32</code></pre>
 <p>As mentioned in the previous section, we also create a <em>linked transcriptome</em> with <em>tximeta</em>. This allows <em>tximeta</em> to recognize the reference annotation when reading the <em>alevin</em> quantification, and automatically annotate the resulting SummarizedExperiment object.</p>
 <pre class="r rchunk"><code>tximeta::makeLinkedTxome(
-  indexDir = &quot;gencode.vM24.annotation.expanded.sidx&quot;, source = &quot;GENCODE&quot;, 
-  organism = &quot;Mus musculus&quot;, release = &quot;M24&quot;, genome = &quot;GRCm38&quot;, 
+  indexDir = &quot;gencode.vM24.annotation.expanded.sidx&quot;, 
+  source = &quot;GENCODE&quot;, genome = &quot;GRCm38&quot;, 
+  organism = &quot;Mus musculus&quot;, release = &quot;M24&quot;, 
   fasta = &quot;gencode.vM24.annotation.expanded.fa&quot;, 
   gtf = &quot;gencode.vM24.annotation.expanded.gtf&quot;, 
   write = TRUE, jsonFile = &quot;gencode.vM24.annotation.expanded.json&quot;
@@ -563,8 +573,8 @@ txis &lt;- scater::runTSNE(txis, dimred = &quot;PCA&quot;)</code></pre>
 ## rownames(54448): ENSMUSG00000102693.1 ENSMUSG00000064842.1 ...
 ##   ENSMUSG00000064369.1 ENSMUSG00000064372.1
 ## rowData names(0):
-## colnames(2323): ACACCAATCTTCGGTC CTGCGGAGTTCAGACT ... AACGTTGTCATCGATG
-##   ATTGGTGGTTACCGAT
+## colnames(2323): ACACCAATCTTCGGTC CTGCGGAGTTCAGACT ...
+##   AACGTTGTCATCGATG ATTGGTGGTTACCGAT
 ## colData names(1): sizeFactor
 ## reducedDimNames(2): PCA TSNE
 ## altExpNames(0):</code></pre>
@@ -609,7 +619,7 @@ scv.pp.log1p(adata)
 
 scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 <pre><code>## computing neighbors
-##     finished (0:00:00) --&gt; added to `.uns[&#39;neighbors&#39;]`
+##     finished (0:00:04) --&gt; added to `.uns[&#39;neighbors&#39;]`
 ##     &#39;distances&#39;, weighted adjacency matrix
 ##     &#39;connectivities&#39;, weighted adjacency matrix
 ## computing moments based on connectivities
@@ -618,8 +628,8 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 <pre class="python pythonchunk"><code>scv.tl.recover_dynamics(adata)</code></pre>
 <pre><code>## recovering dynamics
 ## 
-... 0%
 ... 1%
+... 2%
 ... 3%
 ... 4%
 ... 5%
@@ -628,14 +638,14 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 8%
 ... 8%
 ... 9%
-... 10%
 ... 11%
 ... 12%
-... 13%
+... 12%
 ... 14%
-... 15%
+... 14%
 ... 16%
-... 17%
+... 16%
+... 18%
 ... 18%
 ... 19%
 ... 20%
@@ -643,7 +653,6 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 22%
 ... 23%
 ... 24%
-... 25%
 ... 26%
 ... 27%
 ... 28%
@@ -655,13 +664,12 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 34%
 ... 35%
 ... 36%
+... 36%
 ... 37%
-... 38%
 ... 39%
 ... 40%
 ... 41%
 ... 42%
-... 43%
 ... 44%
 ... 45%
 ... 46%
@@ -672,22 +680,21 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 52%
 ... 53%
 ... 54%
-... 54%
+... 55%
 ... 56%
 ... 57%
 ... 58%
 ... 59%
 ... 61%
 ... 62%
-... 62%
+... 63%
 ... 64%
-... 64%
+... 65%
 ... 66%
-... 67%
 ... 68%
-... 69%
+... 68%
 ... 70%
-... 71%
+... 70%
 ... 72%
 ... 73%
 ... 74%
@@ -700,7 +707,6 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 81%
 ... 82%
 ... 83%
-... 84%
 ... 85%
 ... 86%
 ... 87%
@@ -712,11 +718,11 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ... 94%
 ... 95%
 ... 96%
-... 96%
+... 97%
 ... 98%
-... 98%
+... 99%
 ... 100%
-    finished (0:05:16) --&gt; added 
+    finished (0:05:03) --&gt; added 
 ##     &#39;fit_pars&#39;, fitted parameters for splicing dynamics (adata.var)</code></pre>
 <pre class="python pythonchunk"><code>scv.tl.velocity(adata, mode = &#39;dynamical&#39;)</code></pre>
 <pre><code>## computing velocities
@@ -753,8 +759,8 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 ## 
 ## attached base packages:
-##  [1] tools     stats4    parallel  stats     graphics  grDevices utils    
-##  [8] datasets  methods   base     
+##  [1] tools     stats4    parallel  stats     graphics  grDevices
+##  [7] utils     datasets  methods   base     
 ## 
 ## other attached packages:
 ##  [1] scater_1.15.28              ggplot2_3.3.0              
@@ -805,8 +811,8 @@ scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)</code></pre>
 ## [63] pillar_1.4.3                  biomaRt_2.43.3               
 ## [65] XML_3.99-0.3                  glue_1.3.2                   
 ## [67] BiocVersion_3.11.1            evaluate_0.14                
-## [69] BiocManager_1.30.10           vctrs_0.2.4                  
-## [71] png_0.1-7                     httpuv_1.5.2                 
+## [69] BiocManager_1.30.10           png_0.1-7                    
+## [71] vctrs_0.2.4                   httpuv_1.5.2                 
 ## [73] gtable_0.3.0                  openssl_1.4.1                
 ## [75] purrr_0.3.3                   assertthat_0.2.1             
 ## [77] xfun_0.12                     rsvd_1.0.3                   
