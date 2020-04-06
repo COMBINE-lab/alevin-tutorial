@@ -1,0 +1,326 @@
+---
+title: "Estimating spliced and unspliced abundances for RNA velocity with alevin"
+author: "Charlotte Soneson"
+output: 
+    html_document:
+        keep_md: true
+date:   2020-03-22
+categories: [tutorial]
+tags: [alevin]
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = FALSE}
+.pythonchunk {
+background-color: #faebc0;
+}
+.rchunk {
+background-color: lightgrey;
+}
+.bashchunk {
+background-color: #c8defa
+}
+```
+
+```{r setup, include=FALSE, class.source = "rchunk"}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+exec <- FALSE
+options(width = 70)
+```
+
+## RNA velocity
+
+RNA velocity ([La Manno et al., 2018](https://www.nature.com/articles/s41586-018-0414-6)) allows investigation of the dynamic patterns in single-cell RNA-seq data sets, via estimation of the abundance of intronic ("unprocessed") and exonic ("processed") RNA in each cell, and modelling of these via a system of ordinary differential equations.
+From a quantification point of view, RNA velocity analysis requires the generation of two count matrices, representing the processed and unprocessed RNA. 
+In this tutorial, we show how these matrices can be generated using _alevin_ and [_tximeta_](https://bioconductor.org/packages/tximeta/) ([Love et al., 2020](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007664)).
+For a more detailed study of the impact of quantification on RNA velocity estimates and interpretation, see [Soneson et al., 2020](https://www.biorxiv.org/content/10.1101/2020.03.13.990069v1).
+
+The sections below contain code chunks executed in different languages, indicated with different background colors. 
+R code is represented by grey boxes, shell commands by blue boxes, and python code by yellow boxes.
+We start by loading the required R packages. 
+
+```{r, class.source = "rchunk"}
+suppressPackageStartupMessages({
+    library(Biostrings)
+    library(BSgenome)
+    library(eisaR)
+    library(GenomicFeatures)
+    library(SummarizedExperiment)
+    library(tximeta)
+    library(rjson)
+    library(reticulate)
+    library(SingleCellExperiment)
+    library(scater)
+})
+```
+
+## Step 1. Generate reference fasta files
+
+In order to quantify both exonic and intronic abundances with _alevin_, we need to provide a reference fasta file with both types of sequences. 
+Several tools implement the extraction of transcript and intron sequences from the genome sequence. 
+Here, we will use the [_eisaR_](https://fmicompbio.github.io/eisaR/) package, but equivalent functionality is available in the [_BUSpaRse_](https://bioconductor.org/packages/BUSpaRse/) package, and can be replicated e.g. using basic functions from the [_GenomicFeatures_](https://bioconductor.org/packages/GenomicFeatures/) and [_BSgenome_](https://bioconductor.org/packages/BSgenome/) packages. 
+
+We start by downloading the reference genome and the corresponding gtf file from the Gencode website. 
+```{bash, eval = exec, class.source = "bashchunk"}
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M24/gencode.vM24.annotation.gtf.gz
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M24/GRCm38.primary_assembly.genome.fa.gz
+```
+
+Next, we load the _eisaR_ package and extract a GRanges object containing the genomic coordinates of each annotated transcript and intron. 
+We use the 'separate' approach to define introns separately for each transcript, and add a flank length of 75nt to each intron.
+The length of the flanking sequence should be chosen appropriately depending on the RNA read length and the desired amount of overlap with an intron that is required to consider a read potentially intronic.
+For more details on the different options, we refer to the help of the `getFeatureRanges()` function.
+
+```{r, eval = exec, class.source = "rchunk"}
+gtf <- "gencode.vM24.annotation.gtf.gz"
+grl <- eisaR::getFeatureRanges(
+  gtf = gtf,
+  featureType = c("spliced", "intron"), 
+  intronType = "separate", 
+  flankLength = 75L, 
+  joinOverlappingIntrons = FALSE, 
+  verbose = TRUE
+)
+```
+
+```{r, include = FALSE, eval = exec, class.source = "rchunk"}
+saveRDS(grl, "grl.rds")
+```
+
+```{r, include = FALSE, eval = !exec, class.source = "rchunk"}
+grl <- readRDS("grl.rds")
+```
+
+```{r, class.source = "rchunk"}
+grl[4:6]
+```
+
+After defining the genomic positions of all features of interest, we can extract the sequences of these, and write to a fasta file for later indexing with _Salmon_.
+
+```{r eval = exec, class.source = "rchunk"}
+genome <- Biostrings::readDNAStringSet(
+    "GRCm38.primary_assembly.genome.fa.gz"
+)
+names(genome) <- sapply(strsplit(names(genome), " "), .subset, 1)
+seqs <- GenomicFeatures::extractTranscriptSeqs(
+  x = genome, 
+  transcripts = grl
+)
+Biostrings::writeXStringSet(
+    seqs, filepath = "gencode.vM24.annotation.expanded.fa"
+)
+```
+
+To enable reading the estimated abundances with _tximeta_, automatically recognizing the underlying transcriptome, we write the expanded annotation to a GTF file.
+This will later be used to create a linked transcriptome for _tximeta_.
+
+```{r, eval = exec, class.source = "rchunk"}
+eisaR::exportToGtf(
+  grl, 
+  filepath = "gencode.vM24.annotation.expanded.gtf"
+)
+```
+
+Since _alevin_ quantifies spliced and unspliced features jointly, we will also need to split the imported abundances by feature type. 
+The splitting needs to be done in such a way that we can still match up a spliced feature with the corresponding unspliced feature. 
+To help with this, the metadata of the GRanges object contains a data frame with corresponding spliced and unspliced gene IDs.
+
+```{r, class.source = "rchunk"}
+head(metadata(grl)$corrgene)
+```
+
+```{r, eval = exec, class.source = "rchunk"}
+write.table(
+    metadata(grl)$corrgene, 
+    file = "gencode.vM24.annotation.expanded.features.tsv",
+    row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t"
+)
+```
+
+Finally, we create a text file mapping transcript and intron identifiers to the corresponding gene identifiers.
+
+```{r, eval = exec, class.source = "rchunk"}
+df <- eisaR::getTx2Gene(
+    grl, filepath = "gencode.vM24.annotation.expanded.tx2gene.tsv"
+)
+```
+
+## Step 2. Index the reference features
+
+After creating the fasta file with transcript and intron sequences as above, we can index it using _Salmon_. 
+
+```{bash, eval = exec, include = FALSE, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon index -t gencode.vM24.annotation.expanded.fa \
+-i gencode.vM24.annotation.expanded.sidx --gencode -p 32
+```
+
+```{bash, eval = FALSE, class.source = "bashchunk"}
+salmon index -t gencode.vM24.annotation.expanded.fa \
+-i gencode.vM24.annotation.expanded.sidx --gencode -p 32
+```
+
+As mentioned in the previous section, we also create a _linked transcriptome_ with _tximeta_. 
+This allows _tximeta_ to recognize the reference annotation when reading the _alevin_ quantification, and automatically annotate the resulting SummarizedExperiment object.
+
+```{r, eval = exec, class.source = "rchunk"}
+tximeta::makeLinkedTxome(
+  indexDir = "gencode.vM24.annotation.expanded.sidx", 
+  source = "GENCODE", genome = "GRCm38", 
+  organism = "Mus musculus", release = "M24", 
+  fasta = "gencode.vM24.annotation.expanded.fa", 
+  gtf = "gencode.vM24.annotation.expanded.gtf", 
+  write = TRUE, jsonFile = "gencode.vM24.annotation.expanded.json"
+)
+```
+
+```{r, class.source = "rchunk"}
+rjson::fromJSON(file = "gencode.vM24.annotation.expanded.json")
+```
+
+## Step 3. Quantify with alevin
+
+After generating the index, we quantify exonic and intronic abundances with _alevin_. 
+We use an example data set from [Hermann et al., 2018](https://www.sciencedirect.com/science/article/pii/S2211124718316024?via%3Dihub). 
+The following code downloads the bam file from SRA and uses the [bamtofastq](https://github.com/10XGenomics/bamtofastq) utility to convert it into a set of FASTQ files (note that this can take a long time to execute):
+
+```{bash, eval = FALSE, class.source = "bashchunk"}
+wget https://sra-pub-src-1.s3.amazonaws.com/SRR6459157/AdultMouse_Rep3_possorted_genome_bam.bam.1
+mv AdultMouse_Rep3_possorted_genome_bam.bam.1 AdultMouse_Rep3_possorted_genome_bam.bam
+bamtofastq --reads-per-fastq=500000000 AdultMouse_Rep3_possorted_genome_bam.bam FASTQtmp
+mv FASTQtmp/Ad-Ms-Total-Sorted_20k_count_MissingLibrary_1_HK2GNBBXX/bamtofastq_S1_L006_I1_001.fastq.gz AdultMouseRep3_S1_L001_I1_001.fastq.gz
+mv FASTQtmp/Ad-Ms-Total-Sorted_20k_count_MissingLibrary_1_HK2GNBBXX/bamtofastq_S1_L006_R1_001.fastq.gz AdultMouseRep3_S1_L001_R1_001.fastq.gz
+mv FASTQtmp/Ad-Ms-Total-Sorted_20k_count_MissingLibrary_1_HK2GNBBXX/bamtofastq_S1_L006_R2_001.fastq.gz AdultMouseRep3_S1_L001_R2_001.fastq.gz
+```
+
+Next, we run _alevin_ to quantify the exonic and intronic abundances based on the index generated above.
+
+```{bash, eval = exec, include = FALSE, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon alevin -l ISR -i gencode.vM24.annotation.expanded.sidx \
+-1 AdultMouseRep3_S1_L001_R1_001.fastq.gz \
+-2 AdultMouseRep3_S1_L001_R2_001.fastq.gz \
+-o alevin_out -p 36 --tgMap gencode.vM24.annotation.expanded.tx2gene.tsv \
+--chromium --dumpFeatures --expectCells 1850
+```
+
+```{bash, eval = FALSE, class.source = "bashchunk"}
+salmon alevin -l ISR -i gencode.vM24.annotation.expanded.sidx \
+-1 AdultMouseRep3_S1_L001_R1_001.fastq.gz \
+-2 AdultMouseRep3_S1_L001_R2_001.fastq.gz \
+-o alevin_out -p 36 --tgMap gencode.vM24.annotation.expanded.tx2gene.tsv \
+--chromium --dumpFeatures --expectCells 1850
+```
+
+## Step 4. Import abundances into R with _tximeta_
+
+The _tximeta_ package can be used to import the _alevin_ quantifications into R, and generate a SummarizedExperiment object. 
+We first load the linked transcriptome generated above, and then read the _alevin_ output. 
+
+```{r, eval = exec, class.source = "rchunk"}
+tximeta::loadLinkedTxome("gencode.vM24.annotation.expanded.json")
+txi <- tximeta::tximeta(coldata = data.frame(
+  names = "AdultMouseRep3",
+  files = "alevin_out/alevin/quants_mat.gz", 
+  stringsAsFactors = FALSE
+), type = "alevin")
+```
+
+The `txi` object contains a single assay ('counts') containing both spliced and unspliced abundances. 
+In order to calculate RNA velocities, we need to split this into two matrices, one with spliced and one with unspliced abundances, with corresponding rows. 
+This can be done using the `splitSE()` function from _tximeta_, providing the data frame linking spliced and unspliced gene identifiers that we created above. 
+Note that _tximeta_ version 1.5.30 or later is required for this step.
+
+```{r, eval = exec, class.source = "rchunk"}
+cg <- read.delim("gencode.vM24.annotation.expanded.features.tsv",
+                 header = TRUE, as.is = TRUE)
+## Rename the 'intron' column 'unspliced' to make assay names compatible with scVelo
+colnames(cg)[colnames(cg) == "intron"] <- "unspliced"
+txis <- tximeta::splitSE(txi, cg, assayName = "counts")
+```
+
+At this point, the `txis` object contains all the information required for RNA velocity analysis. 
+However, in order to illustrate the direct application of _scVelo_ below, we convert the `txis` object to a SingleCellExperiment object and perform basic normalization and dimension reduction.
+
+```{r, eval = exec, class.source = "rchunk"}
+txis <- as(txis, "SingleCellExperiment")
+assays(txis) <- list(
+    counts = assay(txis, "spliced"),
+    spliced = assay(txis, "spliced"),
+    unspliced = assay(txis, "unspliced")
+)
+txis <- scater::logNormCounts(txis)
+txis <- scater::runPCA(txis)
+txis <- scater::runTSNE(txis, dimred = "PCA")
+```
+
+```{r, echo = FALSE, eval = exec, class.source = "rchunk"}
+saveRDS(txis, file = "txis.rds")
+```
+
+```{r, echo = FALSE, eval = !exec, class.source = "rchunk"}
+txis <- readRDS("txis.rds")
+```
+
+```{r, class.source = "rchunk"}
+txis
+print(sum(assay(txis, "spliced")))
+print(sum(assay(txis, "unspliced")))
+```
+
+## Step 5. Run scVelo
+
+Once we have the spliced and unspliced abundance estimates, we can run, e.g., [_scVelo_](https://scvelo.readthedocs.io/) ([Bergen et al., 2019](https://www.biorxiv.org/content/10.1101/820936v1)) to estimate and visualize RNA velocities. 
+Note that the code below represents only a simple example application to illustrate the process; please consult the _scVelo_ manual for more details and updated recommendations. 
+
+```{r, include = FALSE, class.source = "rchunk"}
+reticulate::use_virtualenv("/tungstenfs/groups/gbioinfo/Appz/easybuild/software/Anaconda3/5.3.0/envs/scvelo_0.1.24")
+```
+
+First, we use the [_anndata2ri_](https://github.com/theislab/anndata2ri) module to import the SingleCellExperiment object into python, where it is represented as an AnnData object. 
+
+```{python, class.source = "pythonchunk"}
+import scanpy as sc
+import sys
+import numpy as np
+import anndata
+import anndata2ri
+from rpy2.robjects import r
+anndata2ri.activate()
+adata = r('as(txis, "SingleCellExperiment")')
+adata
+```
+
+Next, we use _scVelo_ to select highly variable genes to use as the basis for the velocity calculations. 
+We estimate the velocities using the dynamical approach, and visualize the results in the tSNE embedding calculated above. 
+
+```{python, class.source = "pythonchunk"}
+import scvelo as scv
+import matplotlib
+import pandas as pd
+
+matplotlib.use('AGG')
+scv.settings.set_figure_params('scvelo')
+scv.utils.show_proportions(adata)
+
+scv.pp.filter_genes(adata, min_shared_counts = 30)
+scv.pp.normalize_per_cell(adata, enforce = True)
+scv.pp.filter_genes_dispersion(adata, n_top_genes = 2000)
+scv.pp.log1p(adata)
+
+scv.pp.moments(adata, n_pcs = 30, n_neighbors = 30)
+
+scv.tl.recover_dynamics(adata)
+scv.tl.velocity(adata, mode = 'dynamical')
+scv.tl.velocity_graph(adata)
+scv.pl.velocity_embedding_stream(adata, basis='X_tsne')
+```
+
+
+## Session info
+
+```{r, class.source = "rchunk"}
+sessionInfo()
+```
+
