@@ -1,0 +1,182 @@
+---
+title: "Quantify Spatial Single-Cell Data with alevin"
+author: "Avi Srivastava"
+output: 
+    html_document:
+        keep_md: true
+date:   2020-04-05
+categories: [tutorial]
+tags: [alevin]
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = FALSE}
+.pythonchunk {
+background-color: #faebc0;
+}
+.rchunk {
+background-color: lightgrey;
+}
+.bashchunk {
+background-color: #c8defa
+}
+```
+
+```{r setup, include=FALSE, class.source = "rchunk"}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+exec <- FALSE
+options(width = 70)
+```
+
+
+Slide-seq V1-V2 ([Rodriques, Samuel G., et al., 2019](https://science.sciencemag.org/content/363/6434/1463.abstract?casa_token=IGO7CQbNAM8AAAAA:xZ5VeoGYuAlCvXOVQhPmEF1OSj73AQ7E_9U2MMpJaO2UE9jJRNYvc7enR_Cnr_Dki2PnUfpifnokxA), [Stickels, Robert R., et al., 2020](https://www.biorxiv.org/content/10.1101/2020.03.12.989806v1)) and 10x Genomics' [Visium Gene Expression](https://www.10xgenomics.com/solutions/spatial-gene-expression/) has enable the transcriptome-wide measurements of the molecular signals in a tissue with spatial localization at single-cell level. From a quantification point of view, these spatial single-cell technologies requires the generation of a gene-count matrix for each spot on the tissue, which are identified by spatially marked cellular barcodes. Based on the size of a spot & other technological limitations,each spot _potentially_ contains multiple cells and unlike single-cell sequencing a single barcode can contains multiple cells. In this tutorial we generate the spatially-resolved gene-count matrix for each spot using _alevin_ and we visualize it using [Seurat](https://satijalab.org/seurat/v3.1/spatial_vignette.html).
+
+The sections below contain code chunks executed in different languages, indicated with different background colors. 
+R code is represented by grey boxes and shell commands by blue boxes.
+
+## Step 1. Index the reference sequences
+
+In order to quantify the abundances with _alevin_, we need to generate the index of the reference sequences. Here, we will use prebuild indices from [refgenie](https://academic.oup.com/gigascience/article/9/2/giz149/5717403) but in case the index of a reference species is not available, follow the [Setting Up Resources](https://combine-lab.github.io/alevin-tutorial/2018/setting-up-resources/) tutorial to generate the index.
+
+Please note, based on the availability of the computational resources indexing of the reference sequences can be done at multiple level of accuracy, for more information please check our [preprint](https://www.biorxiv.org/content/10.1101/657874v2). In this tutorial we are using [sagital mouse brain](https://support.10xgenomics.com/spatial-gene-expression/datasets/1.0.0/V1_Mouse_Brain_Sagittal_Anterior) data from 10X Genomics Visium technology and the selective alignment (SA) index of salmon for mouse reference. The following other options are also available for salmon mouse reference index, these are in the increasing order of their size but also in the improvement of the accuracy:
+
+1.) cDNA index: [455.5MB](http://refgenomes.databio.org/v2/asset/mm10_cdna/salmon_index/archive?tag=default).  
+2.) SA index: [806.1MB](http://refgenomes.databio.org/v2/asset/mm10/salmon_partial_sa_index/archive?tag=default).  
+3.) SAF index: [12.1GB](http://refgenomes.databio.org/v2/asset/mm10/salmon_sa_index/archive?tag=default).  
+
+
+We start by downloading the SA salmon index from the refgenie website and unpacking the index.
+```{bash, class.source = "bashchunk"}
+wget --content-disposition  -nv http://refgenomes.databio.org/v2/asset/mm10/salmon_partial_sa_index/archive?tag=default
+
+tar -xvzf salmon_partial_sa_index__default.tgz
+```
+
+We also need a tsv file that maps the transcript names to the gene names. The refgenie SA index already contains the reference file used for indexing and we can generate the map file from that as follows:
+```{bash, eval = exec, class.source = "bashchunk"}
+grep "^>" salmon_partial_sa_index/gentrome.fa | cut -d " " -f 1,7 --output-delimiter=$'\t' - | sed 's/[>"gene_symbol:"]//g' > txp2gene.tsv
+```
+
+## Step 2. Download the raw spatial sequencing data
+
+We download the fastq files for the [Mouse Brain Serial Section 1](https://support.10xgenomics.com/spatial-gene-expression/datasets/1.0.0/V1_Mouse_Brain_Sagittal_Anterior) Visium experiment. The raw reads files are available on the website with the hyperlink `FASTQ`. However, since there is a registration requirements from the source, we are not providing the direct download link. Once downloaded the reads would look like the following:
+
+```{bash, class.source = "bashchunk"}
+tar -xvf V1_Mouse_Brain_Sagittal_Anterior_fastqs.tar
+```
+
+We also need the spatial imaging data which contains the spatial coordinates for each cellular barcode on the tissue slide (similar data can be found in the Slides-seq V1-2). The data can be found on the same web link under the name `Spatial imaging data`. Once downloaded the content of the file looks as follows:
+```{bash, class.source = "bashchunk"}
+tar -xvzf V1_Mouse_Brain_Sagittal_Anterior_spatial.tar.gz
+```
+
+## Step 3. Quantify with alevin
+
+we run _alevin_ to quantify the spatial gene abundances based on the index above.  
+Note: Visium uses 16 length cellular barcode (cb) and 12 length UMI which requires `--chorimiumV3` flag, however this should be swapped with either `--chromium` for 16 length cb, 10 length UMI or `--end 5 --barcodeLength X --umiLength Y` in case the technology uses different legnths for cb,UMI; where X is the cb length and Y is the UMI length 
+
+```{bash, eval = exec, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon alevin -l ISR -i salmon_partial_sa_index \
+-1 V1_Mouse_Brain_Sagittal_Anterior_Section_1_S7_L001_R1_001.fastq.gz \
+V1_Mouse_Brain_Sagittal_Anterior_Section_1_S7_L002_R1_001.fastq.gz \
+-2 V1_Mouse_Brain_Sagittal_Anterior_Section_1_S7_L001_R2_001.fastq.gz \
+V1_Mouse_Brain_Sagittal_Anterior_Section_1_S7_L002_R2_001.fastq.gz \
+-o alevin_out -p 16 --tgMap txp2gene.tsv \
+--chromiumV3 --dumpFeatures
+```
+
+
+## Step 4. Loading data into R
+
+We start by loading the required R packages.  
+*Note*: We need the `spatial` branch of Seurat package to support the spatial data processing.
+
+```{r, class.source = "rchunk"}
+suppressPackageStartupMessages({
+    library(fishpond)
+    library(tximport)
+    library(devtools)
+    library(ggplot2)
+    library(patchwork)
+
+    # use the below command to install spatial Seurat
+    # devtools::install_github("satijalab/seurat", ref = "spatial")
+    library(Seurat)
+})
+```
+
+We load the alevin generated spot-gene count matrix using [tximport](https://github.com/mikelove/tximport) package and create a Seurat object.
+```{r, class.source = "rchunk"}
+files <- file.path("~/alevin_out/alevin/quants_mat.gz")
+file.exists(files)
+
+# tximport loads the alevin data into R
+txi <- tximport(files = files, type = "alevin")
+
+# Creating a Seurat object with spatial assay
+assay <- "Spatial"
+brain <- CreateSeuratObject(counts = txi$counts, project = "SPATIAL", assay = assay)
+brain
+```
+
+We load the spatial image data to extract the spatial 2D coordinates of each cellular barcodes and add the metadata to the Seurat object.
+```{r, class.source = "rchunk"}
+# loading the 10x image data
+image.data <- Read10X_Image("~/spatial/")
+
+# Since the names of alevin cb is different from 10x
+# we rename the cells and filter the image data
+# to have the metadata for only quantified cells
+rownames(image.data@coordinates) <- gsub("-1", "", rownames(image.data@coordinates))
+common.cells <- intersect(Cells(x = brain), rownames(image.data@coordinates))
+
+image.data <- image.data[common.cells]
+brain <- subset(brain, cells = common.cells)
+
+# adding image data to Seurat object
+DefaultAssay(object = image.data) <- "Spatial"
+brain[['slice']] <- image.data
+```
+
+
+## Step 5. Visualization
+
+Once we have the Seurat object we can use all the exciting features made available through the Seurat package. We use the spatial [vignette](https://satijalab.org/seurat/v3.1/spatial_vignette.html) provided by the Seurat package for visualizing the Spatial data.
+
+```{r, class.source = "rchunk"}
+plot1 <- VlnPlot(brain, features = "nCount_Spatial", pt.size = 0.1) + NoLegend()
+plot2 <- SpatialFeaturePlot(brain, features = "nCount_Spatial") + theme(legend.position = "right")
+wrap_plots(plot1, plot2)
+```
+
+We can also perform the gene expression visualization after normalizing the data through [scTransform](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1874-1).
+```{r, class.source = "rchunk"}
+brain <- SCTransform(brain, assay = "Spatial", verbose = FALSE)
+SpatialFeaturePlot(brain, features = c("Hpca", "Ttr"))
+```
+
+We run dimensionality reduction, clustering, and umap visualization
+```{r, class.source = "rchunk"}
+brain <- RunPCA(brain, assay = "SCT", verbose = FALSE)
+brain <- FindNeighbors(brain, reduction = "pca", dims = 1:30)
+brain <- FindClusters(brain, verbose = FALSE)
+brain <- RunUMAP(brain, reduction = "pca", dims = 1:30)
+p1 <- DimPlot(brain, reduction = "umap", label = TRUE)
+p2 <- SpatialDimPlot(brain, label = TRUE, label.size = 3)
+p1 + p2
+```
+
+The most exciting part of the spatial data is the visualization of the spatial localization of the individual clusters
+```{r, class.source = "rchunk"}
+SpatialDimPlot(brain, cells.highlight = CellsByIdentities(object = brain, 
+                                                          idents = c(1, 2, 5, 3, 4, 8)), 
+               facet.highlight = TRUE, ncol = 3)
+```
+
+## Session info
+
+```{r, class.source = "rchunk"}
+sessionInfo()
+```
