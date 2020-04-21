@@ -1,0 +1,236 @@
+---
+title: "Estimate antibody quantification with alevin"
+author: "Avi Srivastava, Yuhan Hao"
+output: 
+    html_document:
+        keep_md: true
+date:   2020-04-20
+categories: [tutorial]
+tags: [alevin]
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = FALSE}
+.pythonchunk {
+background-color: #faebc0;
+}
+.rchunk {
+background-color: lightgrey;
+}
+.bashchunk {
+background-color: #c8defa
+}
+```
+
+```{r setup, include=FALSE, class.source = "rchunk"}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+exec <- FALSE
+options(width = 70)
+```
+
+
+CITE-seq (Stoeckius, Marlon, et al., 2017, Mimitou, Eleni P., et al., 2019) and 10x Genomics’ Feature Barcoding technology has enable the sequencing of the cell surface protein and gene expression from the same cell. From a quantification point of view, these single-cell technologies requires the generation of a count matrix for the features, which can be antibody barcodes for protein, hashing barcodes for sample multiplexing, guide-RNAs for CRISPR and genes for a RNA based experiments. In this tutorial we generate the gene-count (RNA), adt-count (protein) and hto-count (sample hashing) matrices for each cell using alevin, and we harmonize & visualize it using Seurat (Stuart, Tim, & Butler, Andrew et al., 2019).
+
+The sections below contain code chunks executed in different languages, indicated with different background colors. 
+R code is represented by grey boxes and shell commands by blue boxes.
+
+## Step 1. Index the reference sequences
+
+In order to quantify the abundances with _alevin_, we need to generate the index of the reference sequences. Here, we will use prebuild indices from [refgenie](https://academic.oup.com/gigascience/article/9/2/giz149/5717403) but in case the index of a reference species is not available, follow the [Setting Up Resources](https://combine-lab.github.io/alevin-tutorial/2018/setting-up-resources/) tutorial to generate the index.
+
+Please note, based on the availability of the computational resources indexing of the reference sequences can be done at multiple level of accuracy, for more information please check our [preprint](https://www.biorxiv.org/content/10.1101/657874v2). In this tutorial we are using [Bone Marrow Mononuclear Cells](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM3681518) data and the selective alignment (SA) index of salmon for human reference. The following other options are also available for salmon human reference index, these are in the increasing order of their size but also in the improvement of the accuracy:
+
+1.) cDNA index: [531.5MB](http://refgenomes.databio.org/v2/asset/hg38_cdna/salmon_index/archive?tag=default).  
+2.) SA index: [951.3MB](http://refgenomes.databio.org/v2/asset/hg38/salmon_partial_sa_index/archive?tag=default).  
+3.) SAF index: [14.2GB](http://refgenomes.databio.org/v2/asset/hg38/salmon_sa_index/archive?tag=default).  
+
+
+We start by downloading the SA salmon index from the refgenie website and unpacking the index.
+```{bash, eval = exec, class.source = "bashchunk"}
+wget --content-disposition  -nv http://refgenomes.databio.org/v2/asset/hg38/salmon_partial_sa_index/archive?tag=default
+
+tar -xvzf salmon_partial_sa_index__default.tgz
+```
+
+We also need a tsv file that maps the transcript names to the gene names. The refgenie SA index already contains the reference file used for indexing and we can generate the map file from that as follows:
+```{bash, eval = exec, class.source = "bashchunk"}
+grep "^>" salmon_partial_sa_index/gentrome.fa | cut -d " " -f 1,7 --output-delimiter=$'\t' - | sed 's/[>"gene_symbol:"]//g' > txp2gene.tsv
+```
+
+## Step 2. Index the antibody sequences
+
+In order to quantify the antibodies and the sample multiplexing based cell-hasing, we need to index the feature barcodes. We start by downloading the barcode sequences of the antibody derived tags (ADT) and the hash antibody tag oligos (HTO).
+
+```{bash, eval = exec, class.source = "bashchunk"}
+wget --content-disposition  -nv https://ftp.ncbi.nlm.nih.gov/geo/series/GSE128nnn/GSE128639/suppl/GSE128639_MNC_ADT_Barcodes.csv.gz &&
+wget --content-disposition  -nv https://ftp.ncbi.nlm.nih.gov/geo/series/GSE128nnn/GSE128639/suppl/GSE128639_MNC_HTO_Barcodes.csv.gz &&
+
+gunzip GSE128639_MNC_ADT_Barcodes.csv.gz | cut -d "," -f1,4 | tail -n +2 > adt.tsv &&
+gunzip GSE128639_MNC_HTO_Barcodes.csv.gz | cut -d "," -f1,4 | tail -n +2 > hto.tsv
+```
+
+In the latest release of salmon (>= 1.2.0), we add the `--features` command line flag to the `index` sub command of salmon which performs the indexing based on a tab separated file. Specifically, the flag expects an id of the reference sequence tab separated by the nucleotide sequence, one reference per line. We have already generated the two reference files, one for ADT and another for HTO, in the above command. Next, we index the features.
+
+```{bash, eval = exec, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon index -t adt.tsv -i adt_index --features -k7 && 
+salmon index -t hto.tsv -i hto_index --features -k7
+```
+
+## Step 3. Download the raw RNA & antibody sequencing data
+
+We download the fastq files for a CITE-seq based experiment on the [Bone Marrow Mononuclear Cells](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM3681518). CITE-seq generates the raw `FASTQ` files separately for each RNA, ADT and HTO experiments.
+
+```{bash, eval = exec, class.source = "bashchunk"}
+# RNA experiment
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz && 
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &&
+
+# ADT experiment
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R1.fastq.gz &&
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R2.fastq.gz &&
+
+# HTO experiment
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R1.fastq.gz &&
+wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R2.fastq.gz
+```
+
+
+## Step 4. Quantify with alevin
+
+We first run _alevin_ to quantify the gene abundances based on the relevant 3-prime sequencing technology (here it's 10x V2), for more information on using alevin with different 3-prime sequencing technologies, check [How to Run Alevin](https://combine-lab.github.io/alevin-tutorial/2018/running-alevin/) page.
+
+```{bash, eval = exec, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon alevin -l ISR -i salmon_partial_sa_index \
+-1 MNC-A_R1.fastq.gz -2 MNC-A_R2.fastq.gz \
+-o alevin_rna -p 16 --tgMap txp2gene.tsv \
+--chromium --dumpFeatures
+```
+
+Next, we quantify the ADT library using the previously generated `adt_index`. This stage generally requires two new flags, `featureStart` (0 for CITE-seq and 10 for 10x based feature barcoding) -- the start index of the feature barcode on the R2 file and `featureLength` (15 for both CITE-seq and 10x based feature barcoding) -- the length of the feature barcode.
+
+```{bash, eval = exec, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon alevin -l ISR -i adt_index \
+-1 MNC-A-ADT_R1.fastq.gz -2 MNC-A-ADT_R2.fastq.gz \
+-o alevin_adt -p 16 --citeseq --featureStart 0 \
+--featureLength 15
+```
+
+Lastly, we quantify the HTO library using the previously generated `hto_index`. NOTE: Generally, the number of features in a HTO experiment is significantly lower than the mRNA experiment and the ambiguity information in the equivalence-classes becomes trivially simple (mostly unique) to solve. Hence, we recommend using `--naiveEqclass` flag for the UMI deduplication of the HTO data.
+
+```{bash, eval = exec, class.source = "bashchunk"}
+module load Salmon/1.1.0 && 
+salmon alevin -l ISR -i hto_index \
+-1 MNC-A-HTO_R1.fastq.gz -2 MNC-A-HTO_R2.fastq.gz \
+-o alevin_hto -p 16 --citeseq --featureStart 0 \
+--featureLength 15 --naiveEqclass
+```
+
+## Step 5. Loading data into R
+
+We start by loading the required R packages.  
+
+```{r, class.source = "rchunk"}
+suppressPackageStartupMessages({
+    library(fishpond)
+    library(tximport)
+    library(devtools)
+    library(ggplot2)
+    library(patchwork)
+    library(Seurat)
+})
+```
+
+We load the alevin generated count matrices using [tximport](https://github.com/mikelove/tximport) package.
+```{r, class.source = "rchunk"}
+rna.files <- file.path("alevin_rna/alevin/quants_mat.gz")
+adt.files <- file.path("alevin_adt/alevin/quants_mat.gz")
+hto.files <- file.path("alevin_hto/alevin/quants_mat.gz")
+file.exists(c(rna.files, adt.files, hto.files))
+
+# tximport loads the alevin data into R
+rna.txi <- tximport(files = rna.files, type = "alevin")
+adt.txi <- tximport(files = adt.files, type = "alevin")
+hto.txi <- tximport(files = hto.files, type = "alevin")
+```
+
+We create the Seurat object using the RNA data and, add ADT / HTO data as a seprate assay to the object for the common cells.
+```{r, class.source = "rchunk"}
+common.cells <- intersect(colnames(rna.txi$counts), colnames(adt.txi$counts))
+common.cells <- intersect(common.cells , colnames(hto.txi$counts))
+length(common.cells)
+
+object <- CreateSeuratObject(rna.txi$counts[, common.cells])
+object[["ADT"]] <- CreateAssayObject(counts = adt.txi$counts[, common.cells])
+object[["HTO"]] <- CreateAssayObject(counts = hto.txi$counts[, common.cells])
+```
+
+
+## Step 6. Visualization
+
+We start by first normalizing the data using SCTransform (Hafemeister, Christoph, and Rahul Satija, 2019) for the RNA data and centered log-ratio (CLR) normalization for ADT and HTO data.
+
+```{r, class.source = "rchunk"}
+# RNA Normalization and perform PCA 
+object <- SCTransform(object = object)
+object <- RunPCA(object = object)
+
+# ADT Normalization
+DefaultAssay(object) <- "ADT"
+object <- NormalizeData(object, assay = "ADT", normalization.method = "CLR")
+object <- ScaleData(object, assay = "ADT")
+
+# SCT Normalization
+DefaultAssay(object) <- "HTO"
+object <- NormalizeData(object, assay = "HTO", normalization.method = "CLR")
+object <- ScaleData(object, assay = "HTO")
+```
+
+We use the function HTODemux from Seurat to demultiplex cellular barcodes based on the HTO enrichment and assign single cells back to their samples of origin.
+```{r, class.source = "rchunk"}
+object <- HTODemux(object, assay = "HTO", positive.quantile = 0.99)
+
+Idents(object) <- "HTO_classification.global"
+VlnPlot(object, features = "nCount_RNA", pt.size = 0.1, log = TRUE)
+```
+
+[OPTIONAL:] HTODemux function classifies the HTO barcodes into three categories -- singlet, doublet and negatives. We visualize the groups of the object using tSNE and observe 10 visually seprable clusters identifiable by the 10 different sample hashing barcodes (HTOs).
+```{r, class.source = "rchunk"}
+# Calculate a distance matrix using HTO
+hto.dist.mtx <- as.matrix(dist(t(GetAssayData(object = object, assay = "HTO"))))
+
+# Calculate tSNE embeddings with a distance matrix
+object <- RunTSNE(object, distance.matrix = hto.dist.mtx, perplexity = 100)
+DimPlot(object)
+```
+
+
+We subset the object for cellular barcodes which are classified as Singlets by the HTODemux and perform the clustering directly on the protein levels using the ADT data.
+```{r, class.source = "rchunk"}
+# subsetting the data to Singlets
+object.singlet <- subset(object, idents = "Singlet")
+
+# We change the default assay of the object
+# to ADT to work on protein data
+DefaultAssay(object.singlet) <- "ADT"
+
+# we perform PCA and generate UMAP embeddings
+# for visualization
+object.singlet <- RunPCA(object.singlet, features = rownames(object.singlet), 
+                         reduction.name = "apca", reduction.key = "apca_")
+
+object.singlet <- RunUMAP(object.singlet, reduction.name = "aumap", reduction.key = "aumap_", 
+                          dims = 1:8, reduction = "apca")
+
+DimPlot(object.singlet, reduction = "aumap")
+```
+
+
+## Session info
+
+```{r, class.source = "rchunk"}
+sessionInfo()
+```
