@@ -251,7 +251,9 @@ We start by first normalizing the RNA data using SCTransform (Hafemeister, Chris
 ```{r, class.source = "rchunk"}
 # RNA Normalization
 DefaultAssay(object) <- "RNA"
-object <- SCTransform(object, verbose = F)
+object <- NormalizeData(object, verbose = F)
+object <- FindVariableFeatures(object, verbose = F)
+object <- ScaleData(object, verbose = F)
 
 # perform PCA 
 object <- RunPCA(object = object, verbose = F)
