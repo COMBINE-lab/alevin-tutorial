@@ -73,7 +73,8 @@ gunzip GSE128639_MNC_HTO_Barcodes.csv.gz | cut -d "," -f1,4 | tail -n +2 > hto.t
 In the latest release of salmon (>= 1.2.0), we add the `--features` command line flag to the `index` sub command of salmon which performs the indexing based on a tab separated file. Specifically, the flag expects an id of the reference sequence tab separated by the nucleotide sequence, one reference per line. We have already generated the two reference files, one for ADT and another for HTO, in the above command. Next, we index the features.
 
 ```{bash, eval = exec, class.source = "bashchunk"}
-module load Salmon/1.1.0 && 
+# We assume Salmon binary is available to the environment
+# module load Salmon/1.2.1 && 
 salmon index -t adt.tsv -i adt_index --features -k7 && 
 salmon index -t hto.tsv -i hto_index --features -k7
 ```
@@ -102,7 +103,6 @@ wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8
 We first run _alevin_ to quantify the gene abundances based on the relevant 3-prime sequencing technology (here it's 10x V2), for more information on using alevin with different 3-prime sequencing technologies, check [How to Run Alevin](https://combine-lab.github.io/alevin-tutorial/2018/running-alevin/) page.
 
 ```{bash, eval = exec, class.source = "bashchunk"}
-module load Salmon/1.1.0 && 
 salmon alevin -l ISR -i salmon_partial_sa_index \
 -1 MNC-A_R1.fastq.gz -2 MNC-A_R2.fastq.gz \
 -o alevin_rna -p 16 --tgMap txp2gene.tsv \
@@ -112,7 +112,6 @@ salmon alevin -l ISR -i salmon_partial_sa_index \
 Next, we quantify the ADT library using the previously generated `adt_index`. This stage generally requires two new flags, `featureStart` (0 for CITE-seq and 10 for 10x based feature barcoding) -- the start index of the feature barcode on the R2 file and `featureLength` (15 for both CITE-seq and 10x based feature barcoding) -- the length of the feature barcode.
 
 ```{bash, eval = exec, class.source = "bashchunk"}
-module load Salmon/1.1.0 && 
 salmon alevin -l ISR -i adt_index \
 -1 MNC-A-ADT_R1.fastq.gz -2 MNC-A-ADT_R2.fastq.gz \
 -o alevin_adt -p 16 --citeseq --featureStart 0 \
@@ -122,7 +121,6 @@ salmon alevin -l ISR -i adt_index \
 Lastly, we quantify the HTO library using the previously generated `hto_index`. NOTE: Generally, the number of features in a HTO experiment is significantly lower than the mRNA experiment and the ambiguity information in the equivalence-classes becomes trivially simple (mostly unique) to solve. Hence, we recommend using `--naiveEqclass` flag for the UMI deduplication of the HTO data.
 
 ```{bash, eval = exec, class.source = "bashchunk"}
-module load Salmon/1.1.0 && 
 salmon alevin -l ISR -i hto_index \
 -1 MNC-A-HTO_R1.fastq.gz -2 MNC-A-HTO_R2.fastq.gz \
 -o alevin_hto -p 16 --citeseq --featureStart 0 \
@@ -145,9 +143,9 @@ suppressPackageStartupMessages({
 
 We load the alevin generated count matrices using [tximport](https://github.com/mikelove/tximport) package.
 ```{r, class.source = "rchunk"}
-rna.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_rna/alevin/quants_mat.gz")
-adt.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_adt/alevin/quants_mat.gz")
-hto.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_hto/alevin/quants_mat.gz")
+rna.files <- file.path("alevin_rna/alevin/quants_mat.gz")
+adt.files <- file.path("alevin_adt/alevin/quants_mat.gz")
+hto.files <- file.path("alevin_hto/alevin/quants_mat.gz")
 file.exists(c(rna.files, adt.files, hto.files))
 
 # tximport loads the alevin data into R
@@ -247,15 +245,13 @@ object <- RunPCA(object, reduction.name = "apca", reduction.key = "apca_", verbo
 object <- RunUMAP(object, reduction.name = "aumap", reduction.key = "aumap_", dims = 1:18, reduction = "apca", verbose = F)
 ```
 
-### Processing RNA data for clusetring and identifying marker genes.
+### Processing RNA data for clustering and identifying marker genes.
 
 We start by first normalizing the RNA data using SCTransform (Hafemeister, Christoph, and Rahul Satija, 2019).
 ```{r, class.source = "rchunk"}
 # RNA Normalization
 DefaultAssay(object) <- "RNA"
-object <- NormalizeData(object, verbose = F)
-object <- FindVariableFeatures(object, verbose = F)
-object <- ScaleData(object, verbose = F)
+object <- SCTransform(object, verbose = F)
 
 # perform PCA 
 object <- RunPCA(object = object, verbose = F)
@@ -279,13 +275,16 @@ FeaturePlot(object, reduction = "umap", features = c("adt_CD14","adt_CD16",  "ad
 We manually assign cell types to the clusters based on the marker genes and plot the umap embeddings based on the RNA and ADT data.
 ```{r, class.source = "rchunk"}
 # set scale to be FALSE
-object <- RenameIdents(object, `0` = "CD4 Naive T", `1` = "CD14 Mono", `2` = "CD8 Naive T", 
-                                `3` = "CD4 Memory T", `4` = "Naive B", `5` = "CD14 Mono", 
-                               `6` = "Memory B", `7` = "CD8 Effector T", `8` = "NK", 
-                               `9` = "Myeloid Progenitor",  `10` = "MAIT", `11` = "CD4 Naive T", 
-                               `12` = "HSC", `13` = "CD16 Mono", `14` = "pDC", 
-                               `15` = "RBC Progenitor", `16` = "CD1C DC", `17` = "B Progenitor 1", 
-                               `18` = "B Progenitor 2")
+object <- RenameIdents(object, `0` = "CD4 Naive T", `1` = "CD14 Mono", 
+                       `2` = "CD8 Naive T", `3` = "CD4 Memory T", 
+                       `4` = "Naive B", `5` = "CD14 Mono", 
+                       `6` = "Memory B", `7` = "CD8 Effector T", 
+                       `8` = "NK", `9` = "Myeloid Progenitor",  
+                       `10` = "MAIT", `11` = "CD4 Naive T", 
+                       `12` = "HSC", `13` = "CD16 Mono", 
+                       `14` = "pDC", `15` = "RBC Progenitor", 
+                       `16` = "CD1C DC", `17` = "B Progenitor 1", 
+                       `18` = "B Progenitor 2")
 
 # plotting umap embeddings for rna and adt data
 DimPlot(object, reduction = "umap", label = T,  repel = T) + NoLegend()
