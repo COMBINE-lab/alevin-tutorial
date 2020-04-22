@@ -139,16 +139,15 @@ suppressPackageStartupMessages({
     library(tximport)
     library(devtools)
     library(ggplot2)
-    library(patchwork)
     library(Seurat)
 })
 ```
 
 We load the alevin generated count matrices using [tximport](https://github.com/mikelove/tximport) package.
 ```{r, class.source = "rchunk"}
-rna.files <- file.path("alevin_rna/alevin/quants_mat.gz")
-adt.files <- file.path("alevin_adt/alevin/quants_mat.gz")
-hto.files <- file.path("alevin_hto/alevin/quants_mat.gz")
+rna.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_rna/alevin/quants_mat.gz")
+adt.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_adt/alevin/quants_mat.gz")
+hto.files <- file.path("/home/srivastavaa/avi/alevin/vignette/alevin_hto/alevin/quants_mat.gz")
 file.exists(c(rna.files, adt.files, hto.files))
 
 # tximport loads the alevin data into R
@@ -171,63 +170,127 @@ object[["HTO"]] <- CreateAssayObject(counts = hto.txi$counts[, common.cells])
 
 ## Step 6. Visualization
 
-We start by first normalizing the data using SCTransform (Hafemeister, Christoph, and Rahul Satija, 2019) for the RNA data and centered log-ratio (CLR) normalization for ADT and HTO data.
+### Processing Sample Hashing data (HTOs) to demultiplex samples
 
+We start by first performing some basic quality check and filtering of the noisy barcodes on the HTO data. Later, we perform centered log-ratio (CLR) normalization for the HTO data.
 ```{r, class.source = "rchunk"}
-# RNA Normalization and perform PCA 
-object <- SCTransform(object = object)
-object <- RunPCA(object = object)
+# remove HTO protein aggregation cells
+VlnPlot(object, features = c("nCount_HTO"), log = TRUE )
+object <- subset(object, subset = nCount_HTO < 2e4)
 
-# ADT Normalization
-DefaultAssay(object) <- "ADT"
-object <- NormalizeData(object, assay = "ADT", normalization.method = "CLR")
-object <- ScaleData(object, assay = "ADT")
-
-# SCT Normalization
+# HTO Normalization
 DefaultAssay(object) <- "HTO"
-object <- NormalizeData(object, assay = "HTO", normalization.method = "CLR")
-object <- ScaleData(object, assay = "HTO")
+object <- NormalizeData(object,   normalization.method = "CLR", margin = 2, verbose = F)
+VariableFeatures(object) <- rownames(object[["HTO"]]@counts)
+object <- ScaleData(object, assay = "HTO", verbose = F)
 ```
 
-We use the function HTODemux from Seurat to demultiplex cellular barcodes based on the HTO enrichment and assign single cells back to their samples of origin.
+We use the function HTODemux from Seurat to demultiplex cellular barcodes based on the HTO enrichment and assign single cells back to their samples of origin
 ```{r, class.source = "rchunk"}
-object <- HTODemux(object, assay = "HTO", positive.quantile = 0.99)
+object <- HTODemux(object, assay = "HTO", positive.quantile = 0.99, verbose = F)
 
 Idents(object) <- "HTO_classification.global"
+VlnPlot(object, features = "nCount_HTO", pt.size = 0.1, log = TRUE)
 VlnPlot(object, features = "nCount_RNA", pt.size = 0.1, log = TRUE)
+VlnPlot(object, features = "nCount_ADT", pt.size = 0.1, log = TRUE)
 ```
 
-[OPTIONAL:] HTODemux function classifies the HTO barcodes into three categories -- singlet, doublet and negatives. We visualize the groups of the object using tSNE and observe 10 visually seprable clusters identifiable by the 10 different sample hashing barcodes (HTOs).
+**[OPTIONAL]** HTODemux function classifies the HTO barcodes into three categories -- singlet, doublet and negatives. We remove the negatives and visualize the singlets and doublets from the object using UMAP and observe 10 visually seprable clusters identifiable by the 10 different sample hashing barcodes (HTOs).
 ```{r, class.source = "rchunk"}
-# Calculate a distance matrix using HTO
-hto.dist.mtx <- as.matrix(dist(t(GetAssayData(object = object, assay = "HTO"))))
+# subset the data
+object <- subset(object, idents = "Negative", invert = TRUE)
 
-# Calculate tSNE embeddings with a distance matrix
-object <- RunTSNE(object, distance.matrix = hto.dist.mtx, perplexity = 100)
-DimPlot(object)
+# perform PCA and generate UMAP emdeddings
+object <- RunPCA(object, reduction.name = "hto.pca", reduction.key = "HPC_", verbose = F)
+object <- RunUMAP(object, reduction = "hto.pca", dims = 1:9, reduction.name = "hto.umap", reduction.key = "HUMAP_", verbose = F)
+
+DimPlot(object, reduction = "hto.umap", label = F)
+DimPlot(object, reduction = "hto.umap", label = T, group.by = "hash.ID" )
 ```
 
+### Processing Antibody Derived Protein (ADTs) data for clustering
 
-We subset the object for cellular barcodes which are classified as Singlets by the HTODemux and perform the clustering directly on the protein levels using the ADT data.
+We subset the object for cellular barcodes which are classified as Singlets by the HTODemux and remove low quality cells.
 ```{r, class.source = "rchunk"}
 # subsetting the data to Singlets
-object.singlet <- subset(object, idents = "Singlet")
+object <- subset(object, idents = "Singlet")
 
-# We change the default assay of the object
-# to ADT to work on protein data
-DefaultAssay(object.singlet) <- "ADT"
+# remove ADT protein aggregation cells
+VlnPlot(object, features = c("nCount_ADT"),  pt.size = 0.1)
+object <- subset(object, subset = nCount_ADT < 1e4)
 
-# we perform PCA and generate UMAP embeddings
-# for visualization
-object.singlet <- RunPCA(object.singlet, features = rownames(object.singlet), 
-                         reduction.name = "apca", reduction.key = "apca_")
+# remove low quality cells
+Idents(object) <- "hash.ID"
+VlnPlot(object, features = c("nFeature_RNA", "nFeature_ADT"), pt.size = 0.1)
+object <- subset(object, subset = nFeature_RNA > 200 & nFeature_RNA < 3000 & nFeature_ADT > 18)
 
-object.singlet <- RunUMAP(object.singlet, reduction.name = "aumap", reduction.key = "aumap_", 
-                          dims = 1:8, reduction = "apca")
-
-DimPlot(object.singlet, reduction = "aumap")
+# remove high mito cells
+DefaultAssay(object) <- "RNA"
+object[["percent.mt"]] <- PercentageFeatureSet(object, pattern = "^MT-")
+VlnPlot(object, "percent.mt",  pt.size = 0.1)
+object <- subset(object, subset = percent.mt < 10)
 ```
 
+We normalize ADT data, peform PCA and generate UMAP embeddings for visualization.
+
+```{r, class.source = "rchunk"}
+# ADT Normalization
+DefaultAssay(object) <- "ADT"
+object <- NormalizeData(object, normalization.method = "CLR", margin = 2, verbose = F)
+VariableFeatures(object) <- rownames(object[["ADT"]]@counts)
+object <- ScaleData(object, assay = "ADT", verbose = F, do.scale = F)
+
+# Perform PCA
+object <- RunPCA(object, reduction.name = "apca", reduction.key = "apca_", verbose = F)
+
+# generate UMAP
+object <- RunUMAP(object, reduction.name = "aumap", reduction.key = "aumap_", dims = 1:18, reduction = "apca", verbose = F)
+```
+
+### Processing RNA data for clusetring and identifying marker genes.
+
+We start by first normalizing the RNA data using SCTransform (Hafemeister, Christoph, and Rahul Satija, 2019).
+```{r, class.source = "rchunk"}
+# RNA Normalization
+DefaultAssay(object) <- "RNA"
+object <- NormalizeData(object, verbose = F)
+object <- FindVariableFeatures(object, verbose = F)
+object <- ScaleData(object, verbose = F)
+
+# perform PCA 
+object <- RunPCA(object = object, verbose = F)
+
+# generate UMAP embeddings
+object <- RunUMAP(object = object, reduction = "pca", dims = 1:30, verbose = F)
+```
+
+Next, we perform clustering on the PCA embeddings and identify some marker genes.
+```{r, class.source = "rchunk"}
+object <- FindNeighbors(object, reduction = "pca", dims = 1:30, verbose = F)
+object <- FindClusters(object, verbose = F)
+
+## T and NK cells markers
+FeaturePlot(object, reduction = "umap", features = c("adt_CD3","adt_CD4", "adt_CD8a", "adt_CD56", "adt_CD45RA", "adt_CD69","adt_CD45RO", "adt_CD161"), min.cutoff = "q05", max.cutoff = "q95", ncol = 3)
+
+## Monocytes, DC,  B cells and Progenitor cells markers
+FeaturePlot(object, reduction = "umap", features = c("adt_CD14","adt_CD16",  "adt_CD11c","adt_CD19", "adt_CD34",  "rna_AVP", "rna_MPO", "rna_HMBS"), min.cutoff = "q05", max.cutoff = "q95", ncol = 3)
+```
+
+We manually assign cell types to the clusters based on the marker genes and plot the umap embeddings based on the RNA and ADT data.
+```{r, class.source = "rchunk"}
+# set scale to be FALSE
+object <- RenameIdents(object, `0` = "CD4 Naive T", `1` = "CD14 Mono", `2` = "CD8 Naive T", 
+                                `3` = "CD4 Memory T", `4` = "Naive B", `5` = "CD14 Mono", 
+                               `6` = "Memory B", `7` = "CD8 Effector T", `8` = "NK", 
+                               `9` = "Myeloid Progenitor",  `10` = "MAIT", `11` = "CD4 Naive T", 
+                               `12` = "HSC", `13` = "CD16 Mono", `14` = "pDC", 
+                               `15` = "RBC Progenitor", `16` = "CD1C DC", `17` = "B Progenitor 1", 
+                               `18` = "B Progenitor 2")
+
+# plotting umap embeddings for rna and adt data
+DimPlot(object, reduction = "umap", label = T,  repel = T) + NoLegend()
+DimPlot(object, reduction = "aumap", label = T, repel = T) + NoLegend()
+```
 
 ## Session info
 
