@@ -1,6 +1,6 @@
 ---
 title:  "Alevin w/ Feature Barcodes"
-date:   2020-06-20 15:04:23
+date:   2020-04-20 15:04:23
 categories: [tutorial]
 tags: [alevin]
 ---
