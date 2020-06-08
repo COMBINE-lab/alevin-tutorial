@@ -400,8 +400,8 @@ tar -xvzf salmon_partial_sa_index__default.tgz</code></pre>
 <pre class="bash bashchunk"><code>wget --content-disposition  -nv https://ftp.ncbi.nlm.nih.gov/geo/series/GSE128nnn/GSE128639/suppl/GSE128639_MNC_ADT_Barcodes.csv.gz &amp;&amp;
 wget --content-disposition  -nv https://ftp.ncbi.nlm.nih.gov/geo/series/GSE128nnn/GSE128639/suppl/GSE128639_MNC_HTO_Barcodes.csv.gz &amp;&amp;
 
-gunzip GSE128639_MNC_ADT_Barcodes.csv.gz | cut -d &quot;,&quot; -f1,4 | tail -n +2 &gt; adt.tsv &amp;&amp;
-gunzip GSE128639_MNC_HTO_Barcodes.csv.gz | cut -d &quot;,&quot; -f1,4 | tail -n +2 &gt; hto.tsv</code></pre>
+gunzip -c GSE128639_MNC_ADT_Barcodes.csv.gz | awk -F &quot;,&quot; '{print $1&quot;\t&quot;$4}' | tail -n +2 &gt; adt.tsv &amp;&amp;
+gunzip -c GSE128639_MNC_HTO_Barcodes.csv.gz | awk -F &quot;,&quot; '{print $1&quot;\t&quot;$4}' | tail -n +2 &gt; hto.tsv</code></pre>
 <p>In the latest release of salmon (&gt;= 1.2.0), we add the <code>--features</code> command line flag to the <code>index</code> sub command of salmon which performs the indexing based on a tab separated file. Specifically, the flag expects an id of the reference sequence tab separated by the nucleotide sequence, one reference per line. We have already generated the two reference files, one for ADT and another for HTO, in the above command. Next, we index the features.</p>
 <pre class="bash bashchunk"><code># We assume Salmon binary is available to the environment
 # module load Salmon/1.2.1 &amp;&amp; 
