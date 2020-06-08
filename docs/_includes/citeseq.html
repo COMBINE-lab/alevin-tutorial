@@ -412,16 +412,16 @@ salmon index -t hto.tsv -i hto_index --features -k7</code></pre>
 <h2>Step 3. Download the raw RNA &amp; antibody sequencing data</h2>
 <p>We download the fastq files for a CITE-seq based experiment on the <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM3681518">Bone Marrow Mononuclear Cells</a>. CITE-seq generates the raw <code>FASTQ</code> files separately for each RNA, ADT and HTO experiments.</p>
 <pre class="bash bashchunk"><code># RNA experiment
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &amp;&amp; 
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &amp;&amp; 
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &amp;&amp;
 
 # ADT experiment
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R1.fastq.gz &amp;&amp;
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R2.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R1.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R2.fastq.gz &amp;&amp;
 
 # HTO experiment
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R1.fastq.gz &amp;&amp;
-wget --content-disposition  -nv wget https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R2.fastq.gz</code></pre>
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R1.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R2.fastq.gz</code></pre>
 </div>
 <div id="step-4.-quantify-with-alevin" class="section level2">
 <h2>Step 4. Quantify with alevin</h2>
