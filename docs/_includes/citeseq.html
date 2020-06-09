@@ -429,7 +429,7 @@ wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR87583
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i salmon_partial_sa_index \
 -1 MNC-A_R1.fastq.gz -2 MNC-A_R2.fastq.gz \
 -o alevin_rna -p 16 --tgMap txp2gene.tsv \
---chromium --dumpFeatures</code></pre>
+--chromium --dumpFeatures --expectCells 35000 </code></pre>
 <p>Next, we quantify the ADT library using the previously generated <code>adt_index</code>. This stage generally requires two new flags, <code>featureStart</code> (0 for CITE-seq and 10 for 10x based feature barcoding) – the start index of the feature barcode on the R2 file and <code>featureLength</code> (15 for both CITE-seq and 10x based feature barcoding) – the length of the feature barcode.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i adt_index \
 -1 MNC-A-ADT_R1.fastq.gz -2 MNC-A-ADT_R2.fastq.gz \
