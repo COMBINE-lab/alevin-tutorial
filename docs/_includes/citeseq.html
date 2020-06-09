@@ -433,12 +433,14 @@ wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR87583
 <p>Next, we quantify the ADT library using the previously generated <code>adt_index</code>. This stage generally requires two new flags, <code>featureStart</code> (0 for CITE-seq and 10 for 10x based feature barcoding) – the start index of the feature barcode on the R2 file and <code>featureLength</code> (15 for both CITE-seq and 10x based feature barcoding) – the length of the feature barcode.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i adt_index \
 -1 MNC-A-ADT_R1.fastq.gz -2 MNC-A-ADT_R2.fastq.gz \
+--end 5 --umiLength 10 -barcodeLength 16 \
 -o alevin_adt -p 16 --citeseq --featureStart 0 \
 --featureLength 15</code></pre>
 <p>Lastly, we quantify the HTO library using the previously generated <code>hto_index</code>. NOTE: Generally, the number of features in a HTO experiment is significantly lower than the mRNA experiment and the ambiguity information in the equivalence-classes becomes trivially simple (mostly unique) to solve. Hence, we recommend using <code>--naiveEqclass</code> flag for the UMI deduplication of the HTO data.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i hto_index \
 -1 MNC-A-HTO_R1.fastq.gz -2 MNC-A-HTO_R2.fastq.gz \
 -o alevin_hto -p 16 --citeseq --featureStart 0 \
+--end 5 --umiLength 10 -barcodeLength 16 \
 --featureLength 15 --naiveEqclass</code></pre>
 </div>
 <div id="step-5.-loading-data-into-r" class="section level2">
