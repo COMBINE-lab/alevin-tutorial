@@ -193,7 +193,7 @@ VlnPlot(object, features = "nCount_RNA", pt.size = 0.1, log = TRUE)
 VlnPlot(object, features = "nCount_ADT", pt.size = 0.1, log = TRUE)
 ```
 
-**[OPTIONAL]** HTODemux function classifies the HTO barcodes into three categories -- singlet, doublet and negatives. We remove the negatives and visualize the singlets and doublets from the object using UMAP and observe 10 visually seprable clusters identifiable by the 10 different sample hashing barcodes (HTOs).
+**[OPTIONAL]** HTODemux function classifies the HTO barcodes into three categories -- singlet, doublet and negatives. We remove the negatives and visualize the singlets and doublets from the object using UMAP and observe 10 visually separable clusters identifiable by the 10 different sample hashing barcodes (HTOs).
 ```{r, class.source = "rchunk"}
 # subset the data
 object <- subset(object, idents = "Negative", invert = TRUE)
