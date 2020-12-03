@@ -62,7 +62,7 @@ Alevin works on transcript level equivalence classes to resolves potential UMI c
 NOTE: Already have a transcript to gene mapping file for all the transcripts in the reference transcriptome ? If yes, then we can skip this step.
 
 ```python
-bioawk -c gff '$feature=="transcript" {print $group}' <(gunzip -c gencode.v31.primary_assembly.annotation.gtf.gz) | awk -F ' ' '{print substr($4,2,length($4)-3) "\t" substr($2,2,length($2)-3)}' - > txp2gene.tsv
+bioawk -c gff '$feature=="transcript" {print $attribute}' <(gunzip -c gencode.v31.primary_assembly.annotation.gtf.gz) | awk -F ' ' '{print substr($4,2,length($4)-3) "\t" substr($2,2,length($2)-3)}' - > txp2gene.tsv
 ```
 
 The above script, all it does is subsample the `transcript` feature from the *GTF* and dumps the corresponding txp-gene-ids pair in a _tab separated file (tsv)_. The mapping file for `gencode` based human reference transcriptome would look something like the following:
