@@ -434,8 +434,11 @@ wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/007/S
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i adt_index \
 -1 SRR8758325_1.fastq.gz -2 SRR8758325_2.fastq.gz \
 -o alevin_adt -p 16 --citeseq --featureStart 0 \
---featureLength 15</code></pre>
-<p> *Note* a custom geometry can also be provded to by using the following command <code>--bc-geometry 1[1-16] --umi-geometry 1[17-26] --read-geometry 2[1-15] --tgMap adt_map.tsv --keepCBFraction 1.0</code> in place of <code>--citeseq --featureStart 0 --featureLength 15</code> </p>
+--featureLength 15
+*Note* a custom geometry can also be provded using the following command
+--bc-geometry 1[1-16] --umi-geometry 1[17-26] --read-geometry 2[1-15] \ 
+--tgMap adt_map.tsv --keepCBFraction 1.0 in place of 
+--citeseq --featureStart 0 --featureLength 15</code></pre>
 <p>Lastly, we quantify the HTO library using the previously generated <code>hto_index</code>. NOTE: Generally, the number of features in a HTO experiment is significantly lower than the mRNA experiment and the ambiguity information in the equivalence-classes becomes trivially simple (mostly unique) to solve. Hence, we recommend using <code>--naiveEqclass</code> flag for the UMI deduplication of the HTO data.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i hto_index \
 -1 SRR8758327_1.fastq.gz -2 SRR8758327_2.fastq.gz \
