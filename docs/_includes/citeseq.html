@@ -412,35 +412,34 @@ salmon index -t hto.tsv -i hto_index --features -k7</code></pre>
 <h2>Step 3. Download the raw RNA &amp; antibody sequencing data</h2>
 <p>We download the fastq files for a CITE-seq based experiment on the <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM3681518">Bone Marrow Mononuclear Cells</a>. CITE-seq generates the raw <code>FASTQ</code> files separately for each RNA, ADT and HTO experiments.</p>
 <pre class="bash bashchunk"><code># RNA experiment
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R1.fastq.gz &amp;&amp; 
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758323/MNC-A_R2.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/003/SRR8758323/SRR8758323_2.fastq.gz &amp;&amp; 
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/003/SRR8758323/SRR8758323_1.fastq.gz &amp;&amp;
 
 # ADT experiment
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R1.fastq.gz &amp;&amp;
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758325/MNC-A-ADT_R2.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/005/SRR8758325/SRR8758325_1.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/005/SRR8758325/SRR8758325_2.fastq.gz &amp;&amp;
 
 # HTO experiment
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R1.fastq.gz &amp;&amp;
-wget --content-disposition  -nv  https://sra-pub-src-2.s3.amazonaws.com/SRR8758327/MNC-A-HTO_R2.fastq.gz</code></pre>
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/007/SRR8758327/SRR8758327_1.fastq.gz &amp;&amp;
+wget --content-disposition  -nv  ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR875/007/SRR8758327/SRR8758327_2.fastq.gz</code></pre>
 </div>
 <div id="step-4.-quantify-with-alevin" class="section level2">
 <h2>Step 4. Quantify with alevin</h2>
 <p>We first run <em>alevin</em> to quantify the gene abundances based on the relevant 3-prime sequencing technology (here it’s 10x V2), for more information on using alevin with different 3-prime sequencing technologies, check <a href="https://combine-lab.github.io/alevin-tutorial/2018/running-alevin/">How to Run Alevin</a> page.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i salmon_partial_sa_index \
--1 MNC-A_R1.fastq.gz -2 MNC-A_R2.fastq.gz \
+-1 SRR8758323_1.fastq.gz -2 SRR8758323_2.fastq.gz \
 -o alevin_rna -p 16 --tgMap txp2gene.tsv \
 --chromium --dumpFeatures --expectCells 35000 </code></pre>
 <p>Next, we quantify the ADT library using the previously generated <code>adt_index</code>. This stage generally requires two new flags, <code>featureStart</code> (0 for CITE-seq and 10 for 10x based feature barcoding) – the start index of the feature barcode on the R2 file and <code>featureLength</code> (15 for both CITE-seq and 10x based feature barcoding) – the length of the feature barcode.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i adt_index \
--1 MNC-A-ADT_R1.fastq.gz -2 MNC-A-ADT_R2.fastq.gz \
---end 5 --umiLength 10 --barcodeLength 16 \
+-1 SRR8758325_1.fastq.gz -2 SRR8758325_2.fastq.gz \
 -o alevin_adt -p 16 --citeseq --featureStart 0 \
 --featureLength 15</code></pre>
+<p> *Note* a custom geometry can also be provded to by using the following command <code>--bc-geometry 1[1-16] --umi-geometry 1[17-26] --read-geometry 2[1-15] --tgMap adt_map.tsv --keepCBFraction 1.0</code> in place of <code>--citeseq --featureStart 0 --featureLength 15</code> </p>
 <p>Lastly, we quantify the HTO library using the previously generated <code>hto_index</code>. NOTE: Generally, the number of features in a HTO experiment is significantly lower than the mRNA experiment and the ambiguity information in the equivalence-classes becomes trivially simple (mostly unique) to solve. Hence, we recommend using <code>--naiveEqclass</code> flag for the UMI deduplication of the HTO data.</p>
 <pre class="bash bashchunk"><code>salmon alevin -l ISR -i hto_index \
--1 MNC-A-HTO_R1.fastq.gz -2 MNC-A-HTO_R2.fastq.gz \
+-1 SRR8758327_1.fastq.gz -2 SRR8758327_2.fastq.gz \
 -o alevin_hto -p 16 --citeseq --featureStart 0 \
---end 5 --umiLength 10 --barcodeLength 16 \
 --featureLength 15 --naiveEqclass</code></pre>
 </div>
 <div id="step-5.-loading-data-into-r" class="section level2">
