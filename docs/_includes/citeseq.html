@@ -473,6 +473,7 @@ rna.txi &lt;- tximport(files = rna.files, type = &quot;alevin&quot;)</code></pre
 common.cells &lt;- intersect(common.cells , colnames(hto.txi$counts))
 length(common.cells)</code></pre>
 <pre><code>## [1] 19172</code></pre>
+<p> [NOTE] If the feature barcoding protocol use TotalSeq B or C, as mentioned by 10x Genomics, the cellular barcodes of RNA and the feature barcode library would not be exactly the same. To match the cellular barcodes across technologies the cellular barcodes needs to be transformed based on a mapping file. The code to perform the mapping is here https://github.com/COMBINE-lab/salmon/discussions/576#discussioncomment-235459 and more information from 10x Genomic is at https://kb.10xgenomics.com/hc/en-us/articles/360031133451-Why-is-there-a-discrepancy-in-the-3M-february-2018-txt-barcode-whitelist-</p>
 <pre class="r rchunk"><code>object &lt;- CreateSeuratObject(rna.txi$counts[, common.cells])
 object[[&quot;ADT&quot;]] &lt;- CreateAssayObject(counts = adt.txi$counts[, common.cells])
 object[[&quot;HTO&quot;]] &lt;- CreateAssayObject(counts = hto.txi$counts[, common.cells])</code></pre>
